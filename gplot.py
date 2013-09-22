@@ -10,6 +10,12 @@ except: error('This version of python is not new enough. python 2.7 or newer is 
 try: from netCDF4 import Dataset
 except: error('Unable to import netCDF4 module. Check your PYTHONPATH.\n'
           +'Perhaps try:\n   module load python_netcdf4')
+#try: import numpy as np
+#except: error('Unable to import numpy module. Check your PYTHONPATH.\n'
+#          +'Perhaps try:\n   module load python_numpy')
+try: import matplotlib.pyplot as plt
+except: error('Unable to import matplotlib.pyplot module. Check your PYTHONPATH.\n'
+          +'Perhaps try:\n   module load python_matplotlib')
 
 debug = False # Global debugging
 
@@ -67,10 +73,10 @@ def doTheThing(fileName, variableName, sliceSpecs):
     else: matchingSliceSpec = ':' # Stack was empty
     if dim in vars: dVar = rg.variables[dim]
     else: dVar = None
-    if debug:
-      try: slices += [ iRange(rg.dimensions[dim], str(matchingSliceSpec), var) ]
+    if debug: slices += [ iRange(rg.dimensions[dim], str(matchingSliceSpec), dVar) ]
+    else:
+      try: slices += [ iRange(rg.dimensions[dim], str(matchingSliceSpec), dVar) ]
       except: error('Unable to interpret dimension specificion "'+str(matchingSliceSpec)+'".')
-    else: slices += [ iRange(rg.dimensions[dim], str(matchingSliceSpec), dVar) ]
   # Check that all user provided specs were used
   if len(sliceSpecs)>0: error('Some dimension specifications were not used.\n'
     +'Specifically, specifications '+''.join(str(s)+' ' for s in sliceSpecs)+' were unusable.\n'
@@ -86,15 +92,35 @@ def doTheThing(fileName, variableName, sliceSpecs):
   if rank>2: error('The requested data was multi-dimensional with rank '+str(rank)+'.\n'
            +'Only 0-, 1- and 2-dimensional data can be processed.')
   # Now read the coordinate data and variable data
-  coordData=[]
+  coordData=[]; axisLabel=[]
   for i,dim in enumerate(dims):
     if len(slices[i])>1:
-      if dim in vars: coordData += [rg.variables[dim][slices[i]]]
-      else: coordData += [slices[i]]
+      if dim in vars:
+        coordData += [rg.variables[dim][slices[i]]]
+        axisLabel += [constructLabel(rg.variables[dim],dim)]
+      else:
+        coordData += [slices[i]]
+        axisLabel += [dim+' (index)']
   data = var[slices]
+  if debug: print 'axisLabel=',axisLabel
 
   # Now plot
   if rank==0: print data[0]
+  elif rank==1: # Line plot
+    if len(data)==1: data=data[0]
+    plt.plot(coordData[0],data)
+    plt.xlabel(axisLabel[0])
+    plt.xlim(coordData[0][0], coordData[0][-1])
+    plt.ylabel(constructLabel(var))
+    plt.show()
+  elif rank==2: # Pseudo color plot
+    plt.pcolormesh(coordData[1],coordData[0],data)
+    plt.xlabel(axisLabel[1])
+    plt.xlim(coordData[1][0], coordData[1][-1])
+    plt.ylabel(axisLabel[0])
+    plt.ylim(coordData[0][0], coordData[0][-1])
+    plt.title(constructLabel(var))
+    plt.show()
 
 def iRange(ncDim, strSpec, ncVar): # Interpret strSpec and return list of indices
   equalParts = strSpec.split('='); dLen = len(ncDim)
@@ -146,6 +172,16 @@ def coord2index( coordList, coordVal, roundUp=False): # Returns index of nearest
     if abs(coordList[ind+1]-coordVal)<=abs(coordList[ind]-coordVal): ind=ind+1
   if debug: print '      coord(',ind,')=',coordList[ind],' matches coord=',coordVal
   return ind
+
+def constructLabel(ncObj,default=''):
+  if debug: print 'ncObj=',ncObj
+  label = ''
+  if 'long_name' in ncObj.ncattrs():
+    label += str(ncObj.getncattr('long_name'))+' '
+  if 'units' in ncObj.ncattrs():
+    label += '('+str(ncObj.getncattr('units'))+')'
+  if len(label)==0: label = default+' (index)'
+  return label
 
 def summarizeFile(rg):
   vars = rg.variables
