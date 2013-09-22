@@ -1,8 +1,15 @@
 #!/usr/bin/env python
 
-from netCDF4 import Dataset
-import argparse
+def error(msg,code=9):
+  print 'Error: ' + msg
+  exit(code)
+
 import re
+try: import argparse
+except: error('This version of python is not new enough. python 2.7 or newer is required.')
+try: from netCDF4 import Dataset
+except: error('Unable to import netCDF4 module. Check your PYTHONPATH.\n'
+          +'Perhaps try:\n   module load python_netcdf4')
 
 debug = False # Global debugging
 
@@ -37,7 +44,7 @@ def doTheThing(fileName, variableName, sliceSpecs):
   generalSpecs = [s for s in sliceSpecs for m in [reGen.match(s)] if not m]
   if debug: print 'All general specifications=',generalSpecs
   slices = []
-  dims = var.dimensions; vars = rg.variables
+  dims = var.dimensions; vars = rg.variables;
   for dim in dims:
     if debug: print 'Processing',dim,' slice specs=',sliceSpecs
     if len(sliceSpecs)>0: # Look for user provided spec
@@ -60,18 +67,34 @@ def doTheThing(fileName, variableName, sliceSpecs):
     else: matchingSliceSpec = ':' # Stack was empty
     if dim in vars: dVar = rg.variables[dim]
     else: dVar = None
-    slices += [ iRange(rg.dimensions[dim], str(matchingSliceSpec), dVar) ]
-   #try: slices += [ iRange(rg.dimensions[dim], str(matchingSliceSpec), var) ]
-   #except: error('Unable to interpret dimension specificion "'+str(matchingSliceSpec)+'".')
+    if debug:
+      try: slices += [ iRange(rg.dimensions[dim], str(matchingSliceSpec), var) ]
+      except: error('Unable to interpret dimension specificion "'+str(matchingSliceSpec)+'".')
+    else: slices += [ iRange(rg.dimensions[dim], str(matchingSliceSpec), dVar) ]
   # Check that all user provided specs were used
   if len(sliceSpecs)>0: error('Some dimension specifications were not used.\n'
     +'Specifically, specifications '+''.join(str(s)+' ' for s in sliceSpecs)+' were unusable.\n'
     +'Variable "'+variableName+'" has dimensions: '+''.join(str(d)+' ' for d in dims)+'\n')
   if debug: print 'slices=',slices
 
-  # Now read the data
+  # Determine rank of data
+  shape = []
+  for s in slices:
+    shape += [len(s)]
+  rank = len(shape)-shape.count(1)
+  if debug: print 'Requested data shape=',shape,'rank=',rank
+  if rank>2: error('The requested data was multi-dimensional with rank '+str(rank)+'.\n'
+           +'Only 0-, 1- and 2-dimensional data can be processed.')
+  # Now read the coordinate data and variable data
+  coordData=[]
+  for i,dim in enumerate(dims):
+    if len(slices[i])>1:
+      if dim in vars: coordData += [rg.variables[dim][slices[i]]]
+      else: coordData += [slices[i]]
   data = var[slices]
-  print data
+
+  # Now plot
+  if rank==0: print data[0]
 
 def iRange(ncDim, strSpec, ncVar): # Interpret strSpec and return list of indices
   equalParts = strSpec.split('='); dLen = len(ncDim)
@@ -148,10 +171,6 @@ def summarizeFile(rg):
     if 'long_name' in obj.ncattrs(): oString += ' "'+obj.getncattr('long_name')+'"'
     if 'units' in obj.ncattrs(): oString += ' ('+obj.getncattr('units')+')'
     print oString
-
-def error(msg,code=9):
-  print 'Error: ' + msg
-  exit(code)
 
 def main():
   global debug # Declared global in order to set it
