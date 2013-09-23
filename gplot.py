@@ -10,9 +10,9 @@ except: error('This version of python is not new enough. python 2.7 or newer is 
 try: from netCDF4 import Dataset
 except: error('Unable to import netCDF4 module. Check your PYTHONPATH.\n'
           +'Perhaps try:\n   module load python_netcdf4')
-#try: import numpy as np
-#except: error('Unable to import numpy module. Check your PYTHONPATH.\n'
-#          +'Perhaps try:\n   module load python_numpy')
+try: import numpy as np
+except: error('Unable to import numpy module. Check your PYTHONPATH.\n'
+          +'Perhaps try:\n   module load python_numpy')
 try: import matplotlib.pyplot as plt
 except: error('Unable to import matplotlib.pyplot module. Check your PYTHONPATH.\n'
           +'Perhaps try:\n   module load python_matplotlib')
@@ -92,34 +92,51 @@ def doTheThing(fileName, variableName, sliceSpecs):
   if rank>2: error('The requested data was multi-dimensional with rank '+str(rank)+'.\n'
            +'Only 0-, 1- and 2-dimensional data can be processed.')
   # Now read the coordinate data and variable data
-  coordData=[]; axisLabel=[]
+  coordData=[]; axisLabel=[]; coordObj=[]
   for i,dim in enumerate(dims):
     if len(slices[i])>1:
       if dim in vars:
         coordData += [rg.variables[dim][slices[i]]]
         axisLabel += [constructLabel(rg.variables[dim],dim)]
+        coordObj += [rg.variables[dim]]
       else:
-        coordData += [slices[i]]
+        coordData += [np.array(slices[i])]
         axisLabel += [dim+' (index)']
+        coordObj += [None]
   data = var[slices]
   if debug: print 'axisLabel=',axisLabel
+  if debug: print 'coordObj=',coordObj
 
   # Now plot
   if rank==0: print data[0]
   elif rank==1: # Line plot
     if len(data)==1: data=data[0]
-    plt.plot(coordData[0],data)
-    plt.xlabel(axisLabel[0])
-    plt.xlim(coordData[0][0], coordData[0][-1])
-    plt.ylabel(constructLabel(var))
+    if isAttrEqualTo(coordObj[0],'cartesian_axis','z'): # Transpose 1d plot
+      plt.plot(data,coordData[0])
+      plt.xlabel(constructLabel(var))
+      plt.ylabel(axisLabel[0])
+      plt.ylim(coordData[0][0], coordData[0][-1])
+      if coordData[0][0]>coordData[0][-1]: plt.gca().invert_yaxis()
+    else: # Normal 1d plot
+      plt.plot(coordData[0],data)
+      plt.xlabel(axisLabel[0])
+      plt.xlim(coordData[0][0], coordData[0][-1])
+      plt.ylabel(constructLabel(var))
     plt.show()
   elif rank==2: # Pseudo color plot
-    plt.pcolormesh(coordData[1],coordData[0],data)
+    if debug: print 'coordData[1]=',coordData[1]
+    if debug: print 'coordData[0]=',coordData[0]
+    plt.pcolormesh(coordData[1],coordData[0],np.squeeze(data))
+    #plt.pcolormesh(data)
     plt.xlabel(axisLabel[1])
     plt.xlim(coordData[1][0], coordData[1][-1])
     plt.ylabel(axisLabel[0])
     plt.ylim(coordData[0][0], coordData[0][-1])
+    if isAttrEqualTo(coordObj[0],'cartesian_axis','z'): # Z on y axis ?
+      if coordData[0][0]>coordData[0][-1]: plt.gca().invert_yaxis()
     plt.title(constructLabel(var))
+    makeGuessAboutCmap()
+    plt.colorbar()
     plt.show()
 
 def iRange(ncDim, strSpec, ncVar): # Interpret strSpec and return list of indices
@@ -183,8 +200,34 @@ def constructLabel(ncObj,default=''):
   if len(label)==0: label = default+' (index)'
   return label
 
+def isAttrEqualTo(ncObj,name,value):
+  if name in ncObj.ncattrs():
+    if value.lower() in str(ncObj.getncattr(name)).lower():
+      return True
+  return False
+
+def makeGuessAboutCmap():
+  vmin, vmax = plt.gci().get_clim()
+  if optCmdLineArgs.colormap:
+    plt.set_cmap(optCmdLineArgs.colormap)
+  else:
+    if vmin*vmax>=0: # Single signed data
+      if max(vmin,vmax)>0: plt.set_cmap('hot')
+      else: plt.set_cmap('hot_r')
+    else: # Multi-signed data
+      cutOffFrac = 0.3
+      if -vmin<vmax and -vmin/vmax>cutOffFrac:
+        plt.clim(-vmax,vmax)
+        plt.set_cmap('seismic')
+      elif -vmin>vmax and -vmax/vmin>cutOffFrac:
+        plt.clim(vmin,-vmin)
+        plt.set_cmap('seismic')
+      else: plt.set_cmap('spectral')
+  if optCmdLineArgs.clim:
+    plt.clim(optCmdLineArgs.clim[0],optCmdLineArgs.clim[1])
+
 def summarizeFile(rg):
-  vars = rg.variables
+  dims = rg.dimensions; vars = rg.variables
   print 'Dimensions:'
   for dim in dims:
     oString = ' '+dim+' ['+str(len( dims[dim] ))+']'
@@ -210,6 +253,7 @@ def summarizeFile(rg):
 
 def main():
   global debug # Declared global in order to set it
+  global optCmdLineArgs # For optional argument handling within routines
 
   # Arguments
   parser = argparse.ArgumentParser(description=
@@ -223,13 +267,17 @@ def main():
   parser.add_argument('pos', type=str,
                       nargs='*', default='',
                       help='Indices or location specification.')
+  parser.add_argument('-cm','--colormap', type=str, default='',
+                      help='Specify the colormap.')
+  parser.add_argument('--clim', type=float, nargs=2,
+                      help='Specify the lower/upper color range.')
   parser.add_argument('-d','--debug', action='store_true',
                       help='Turn on debugging information.')
-  args = parser.parse_args()
+  optCmdLineArgs = parser.parse_args()
 
-  if args.debug: debug = True
+  if optCmdLineArgs.debug: debug = True
 
-  doTheThing(args.filename, args.variable, args.pos)
+  doTheThing(optCmdLineArgs.filename, optCmdLineArgs.variable, optCmdLineArgs.pos)
 
 # Invoke main()
 if __name__ == '__main__': main()
