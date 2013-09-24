@@ -126,14 +126,24 @@ def doTheThing(fileName, variableName, sliceSpecs):
   elif rank==2: # Pseudo color plot
     if debug: print 'coordData[1]=',coordData[1]
     if debug: print 'coordData[0]=',coordData[0]
-    plt.pcolormesh(coordData[1],coordData[0],np.squeeze(data))
-    #plt.pcolormesh(data)
-    plt.xlabel(axisLabel[1])
-    plt.xlim(coordData[1][0], coordData[1][-1])
-    plt.ylabel(axisLabel[0])
-    plt.ylim(coordData[0][0], coordData[0][-1])
-    if isAttrEqualTo(coordObj[0],'cartesian_axis','z'): # Z on y axis ?
-      if coordData[0][0]>coordData[0][-1]: plt.gca().invert_yaxis()
+    if isAttrEqualTo(coordObj[1],'cartesian_axis','z'): # Transpose 1d plot
+      plt.pcolormesh(coordData[0],coordData[1],np.transpose(np.squeeze(data)))
+      plt.xlabel(axisLabel[0])
+      plt.xlim(coordData[0][0], coordData[0][-1])
+      plt.ylabel(axisLabel[1])
+      plt.ylim(coordData[1][0], coordData[1][-1])
+      if isAttrEqualTo(coordObj[1],'cartesian_axis','z'): # Z on y axis ?
+        if coordData[1][0]>coordData[1][-1]: plt.gca().invert_yaxis()
+        if isAttrEqualTo(coordObj[1],'positive','down'): plt.gca().invert_yaxis()
+    else:
+      plt.pcolormesh(coordData[1],coordData[0],np.squeeze(data))
+      plt.xlabel(axisLabel[1])
+      plt.xlim(coordData[1][0], coordData[1][-1])
+      plt.ylabel(axisLabel[0])
+      plt.ylim(coordData[0][0], coordData[0][-1])
+      if isAttrEqualTo(coordObj[0],'cartesian_axis','z'): # Z on y axis ?
+        if coordData[0][0]>coordData[0][-1]: plt.gca().invert_yaxis()
+        if isAttrEqualTo(coordObj[0],'positive','down'): plt.gca().invert_yaxis()
     plt.title(constructLabel(var))
     makeGuessAboutCmap()
     plt.colorbar()
