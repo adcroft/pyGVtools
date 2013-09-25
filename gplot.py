@@ -117,6 +117,7 @@ def doTheThing(fileName, variableName, sliceSpecs):
       plt.ylabel(axisLabel[0])
       plt.ylim(coordData[0][0], coordData[0][-1])
       if coordData[0][0]>coordData[0][-1]: plt.gca().invert_yaxis()
+      if isAttrEqualTo(coordObj[0],'positive','down'): plt.gca().invert_yaxis()
     else: # Normal 1d plot
       plt.plot(coordData[0],data)
       plt.xlabel(axisLabel[0])
@@ -218,6 +219,9 @@ def isAttrEqualTo(ncObj,name,value):
 
 def makeGuessAboutCmap():
   vmin, vmax = plt.gci().get_clim()
+  if vmin==vmax:
+    if debug: print 'vmin,vmax=',vmin,vmax
+    vmin = vmin - 1; vmax = vmax + 1
   if optCmdLineArgs.colormap:
     plt.set_cmap(optCmdLineArgs.colormap)
   else:
