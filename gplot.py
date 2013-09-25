@@ -123,7 +123,6 @@ def doTheThing(fileName, variableName, sliceSpecs):
       plt.xlabel(axisLabel[0])
       plt.xlim(coordData[0][0], coordData[0][-1])
       plt.ylabel(constructLabel(var))
-    plt.show()
   elif rank==2: # Pseudo color plot
     if debug: print 'coordData[1]=',coordData[1]
     if debug: print 'coordData[0]=',coordData[0]
@@ -148,7 +147,9 @@ def doTheThing(fileName, variableName, sliceSpecs):
     plt.title(constructLabel(var))
     makeGuessAboutCmap()
     plt.colorbar()
-    plt.show()
+  if optCmdLineArgs.output:
+    plt.savefig(optCmdLineArgs.output,pad_inches=0.)
+  else: plt.show()
 
 def iRange(ncDim, strSpec, ncVar): # Interpret strSpec and return list of indices
   equalParts = strSpec.split('='); dLen = len(ncDim)
@@ -287,6 +288,8 @@ def main():
                       help='Specify the lower/upper color range.')
   parser.add_argument('-d','--debug', action='store_true',
                       help='Turn on debugging information.')
+  parser.add_argument('-o','--output', type=str, default='',
+                      help='Name of image file to create.')
   optCmdLineArgs = parser.parse_args()
 
   if optCmdLineArgs.debug: debug = True
