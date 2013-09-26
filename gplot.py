@@ -107,6 +107,11 @@ def doTheThing(fileName, variableName, sliceSpecs):
   if debug: print 'axisLabel=',axisLabel
   if debug: print 'coordObj=',coordObj
 
+  if optCmdLineArgs.stats:
+    dMin = np.min(data); dMax = np.max(data)
+    print 'Mininum=',dMin,'Maximum=',dMax
+    dMin = np.min(data[data!=0]); dMax = np.max(data[data!=0])
+    print 'Mininum=',dMin,'Maximum=',dMax,'(ignoring zeros)'
   # Now plot
   if rank==0: print data[0]
   elif rank==1: # Line plot
@@ -290,6 +295,8 @@ def main():
                       help='Turn on debugging information.')
   parser.add_argument('-o','--output', type=str, default='',
                       help='Name of image file to create.')
+  parser.add_argument('--stats', action='store_true',
+                      help='Calculate statistics of viewed data.')
   optCmdLineArgs = parser.parse_args()
 
   if optCmdLineArgs.debug: debug = True
