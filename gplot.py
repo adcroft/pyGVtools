@@ -107,6 +107,7 @@ def doTheThing(fileName, variableName, sliceSpecs):
   if debug: print 'axisLabel=',axisLabel
   if debug: print 'coordObj=',coordObj
 
+  if optCmdLineArgs.list: print 'Data =\n',data
   if optCmdLineArgs.stats:
     dMin = np.min(data); dMax = np.max(data)
     print 'Mininum=',dMin,'Maximum=',dMax
@@ -297,6 +298,8 @@ def main():
                       help='Name of image file to create.')
   parser.add_argument('--stats', action='store_true',
                       help='Calculate statistics of viewed data.')
+  parser.add_argument('--list', action='store_true',
+                      help='Print selected data to screen.')
   optCmdLineArgs = parser.parse_args()
 
   if optCmdLineArgs.debug: debug = True
