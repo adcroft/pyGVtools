@@ -103,9 +103,13 @@ def doTheThing(fileName, variableName, sliceSpecs):
         coordData += [np.array(slices[i])]
         axisLabel += [dim+' (index)']
         coordObj += [None]
-  data = var[slices]
+  data = np.ma.masked_array(var[slices])
   if debug: print 'axisLabel=',axisLabel
   if debug: print 'coordObj=',coordObj
+
+  # Optionally mask out a specific value
+  if optCmdLineArgs.ignore:
+    data = np.ma.masked_array(data, mask=[data==optCmdLineArgs.ignore])
 
   if optCmdLineArgs.list: print 'Data =\n',data
   if optCmdLineArgs.stats:
@@ -292,6 +296,8 @@ def main():
                       help='Specify the colormap.')
   parser.add_argument('--clim', type=float, nargs=2,
                       help='Specify the lower/upper color range.')
+  parser.add_argument('-i','--ignore', type=float, nargs=1,
+                      help='Mask out the given value.')
   parser.add_argument('-d','--debug', action='store_true',
                       help='Turn on debugging information.')
   parser.add_argument('-o','--output', type=str, default='',
