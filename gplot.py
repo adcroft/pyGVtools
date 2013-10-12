@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 
-def error(msg,code=9):
+# A simple error message generator with optional error code to return to shell
+def error(msg, code=9):
   print 'Error: ' + msg
   exit(code)
 
+
+# Try to import required packages/modules
 import re
 try: import argparse
 except: error('This version of python is not new enough. python 2.7 or newer is required.')
@@ -19,7 +22,48 @@ except: error('Unable to import matplotlib.pyplot module. Check your PYTHONPATH.
 
 debug = False # Global debugging
 
-def doTheThing(fileName, variableName, sliceSpecs):
+
+# Parse the command line positional and optional arguments. This is the
+# highest level procedure invoked from the very end of the script.
+def parseCommandLine():
+  global debug # Declared global in order to set it
+  global optCmdLineArgs # For optional argument handling within routines
+
+  # Arguments
+  parser = argparse.ArgumentParser(description=
+       'Yada yada yada',
+       epilog='Written by A.Adcroft, 2013.')
+  parser.add_argument('filename', type=str,
+                      help='netcdf file to read.')
+  parser.add_argument('variable', type=str,
+                      nargs='?', default='',
+                      help='Name of variable to plot. If absent a summary of file contents will be issued.')
+  parser.add_argument('pos', type=str,
+                      nargs='*', default='',
+                      help='Indices or location specification.')
+  parser.add_argument('-cm','--colormap', type=str, default='',
+                      help='Specify the colormap.')
+  parser.add_argument('--clim', type=float, nargs=2,
+                      help='Specify the lower/upper color range.')
+  parser.add_argument('-i','--ignore', type=float, nargs=1,
+                      help='Mask out the given value.')
+  parser.add_argument('-d','--debug', action='store_true',
+                      help='Turn on debugging information.')
+  parser.add_argument('-o','--output', type=str, default='',
+                      help='Name of image file to create.')
+  parser.add_argument('--stats', action='store_true',
+                      help='Calculate statistics of viewed data.')
+  parser.add_argument('--list', action='store_true',
+                      help='Print selected data to screen.')
+  optCmdLineArgs = parser.parse_args()
+
+  if optCmdLineArgs.debug: debug = True
+
+  processCommands(optCmdLineArgs.filename, optCmdLineArgs.variable, optCmdLineArgs.pos)
+
+
+# processCommands() figures out the logic of what to actually do
+def processCommands(fileName, variableName, sliceSpecs):
   # Open netcdf file
   try: rg=Dataset( fileName, 'r' );
   except: error('There was a problem opening "'+fileName+'".')
@@ -161,7 +205,9 @@ def doTheThing(fileName, variableName, sliceSpecs):
     plt.savefig(optCmdLineArgs.output,pad_inches=0.)
   else: plt.show()
 
-def iRange(ncDim, strSpec, ncVar): # Interpret strSpec and return list of indices
+
+# Interpret strSpec and return list of indices
+def iRange(ncDim, strSpec, ncVar):
   equalParts = strSpec.split('='); dLen = len(ncDim)
   if debug: print '    = split',equalParts
   if len(equalParts)>2: error('Syntax error in "'+strSpec+'".')
@@ -204,15 +250,19 @@ def iRange(ncDim, strSpec, ncVar): # Interpret strSpec and return list of indice
   if indE-indS==1: return [indS]
   else: return range(indS,indE)
 
-def coord2index( coordList, coordVal, roundUp=False): # Returns index of nearest coordList
+
+# Returns index of element of coordList with nearest value to coordVal
+def coord2index(coordList, coordVal, roundUp=False):
   ind = min(range(len(coordList)), key=lambda i:abs(coordList[i]-coordVal))
   if roundUp and (ind+1<len(coordList)):
-    # Correct for roundin 0.5 down to 0.
+    # Correct for rounding 0.5 down to 0.
     if abs(coordList[ind+1]-coordVal)<=abs(coordList[ind]-coordVal): ind=ind+1
   if debug: print '      coord(',ind,')=',coordList[ind],' matches coord=',coordVal
   return ind
 
-def constructLabel(ncObj,default=''):
+
+# Returns a string combing CF attiributes "long_name" and "units"
+def constructLabel(ncObj, default=''):
   if debug: print 'ncObj=',ncObj
   label = ''
   if 'long_name' in ncObj.ncattrs():
@@ -222,12 +272,16 @@ def constructLabel(ncObj,default=''):
   if len(label)==0: label = default+' (index)'
   return label
 
-def isAttrEqualTo(ncObj,name,value):
+
+# Returns True if ncObj has attribute "name" that matches "value"
+def isAttrEqualTo(ncObj, name, value):
   if name in ncObj.ncattrs():
     if value.lower() in str(ncObj.getncattr(name)).lower():
       return True
   return False
 
+
+# Make an intelligent choice about which colormap to use
 def makeGuessAboutCmap():
   vmin, vmax = plt.gci().get_clim()
   if vmin==vmax:
@@ -251,6 +305,8 @@ def makeGuessAboutCmap():
   if optCmdLineArgs.clim:
     plt.clim(optCmdLineArgs.clim[0],optCmdLineArgs.clim[1])
 
+
+# Generate a succinct summary of the netcdf file contents
 def summarizeFile(rg):
   dims = rg.dimensions; vars = rg.variables
   print 'Dimensions:'
@@ -276,41 +332,6 @@ def summarizeFile(rg):
     if 'units' in obj.ncattrs(): oString += ' ('+obj.getncattr('units')+')'
     print oString
 
-def main():
-  global debug # Declared global in order to set it
-  global optCmdLineArgs # For optional argument handling within routines
 
-  # Arguments
-  parser = argparse.ArgumentParser(description=
-       'Yada yada yada',
-       epilog='Written by A.Adcroft, 2013.')
-  parser.add_argument('filename', type=str,
-                      help='netcdf file to read.')
-  parser.add_argument('variable', type=str,
-                      nargs='?', default='',
-                      help='Name of variable to plot. If absent a summary of file contents will be issued.')
-  parser.add_argument('pos', type=str,
-                      nargs='*', default='',
-                      help='Indices or location specification.')
-  parser.add_argument('-cm','--colormap', type=str, default='',
-                      help='Specify the colormap.')
-  parser.add_argument('--clim', type=float, nargs=2,
-                      help='Specify the lower/upper color range.')
-  parser.add_argument('-i','--ignore', type=float, nargs=1,
-                      help='Mask out the given value.')
-  parser.add_argument('-d','--debug', action='store_true',
-                      help='Turn on debugging information.')
-  parser.add_argument('-o','--output', type=str, default='',
-                      help='Name of image file to create.')
-  parser.add_argument('--stats', action='store_true',
-                      help='Calculate statistics of viewed data.')
-  parser.add_argument('--list', action='store_true',
-                      help='Print selected data to screen.')
-  optCmdLineArgs = parser.parse_args()
-
-  if optCmdLineArgs.debug: debug = True
-
-  doTheThing(optCmdLineArgs.filename, optCmdLineArgs.variable, optCmdLineArgs.pos)
-
-# Invoke main()
-if __name__ == '__main__': main()
+# Invoke parseCommandLine(), the top-level prodedure
+if __name__ == '__main__': parseCommandLine()
