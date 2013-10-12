@@ -64,6 +64,9 @@ def parseCommandLine():
 
 # processCommands() figures out the logic of what to actually do
 def processCommands(fileName, variableName, sliceSpecs):
+
+  (fileName, vName, pSpecs) = splitFileVarPos(fileName)
+
   # Open netcdf file
   try: rg=Dataset( fileName, 'r' );
   except: error('There was a problem opening "'+fileName+'".')
@@ -204,6 +207,25 @@ def processCommands(fileName, variableName, sliceSpecs):
   if optCmdLineArgs.output:
     plt.savefig(optCmdLineArgs.output,pad_inches=0.)
   else: plt.show()
+
+
+# Splut a string in form of "file:variable[...]" into parts
+# Valid forms are file, file:variable or file:variable[i,j=,=2.,z=,...]
+def splitFileVarPos(string):
+  fName = None; vName = None; pSpecs=None
+  m = re.match(r'([\w\.~/]+?):(\w+?)\[([\w,:=\.]*?)\](.*)',string)
+  if not m: # Try file:variable instead
+    m2 = re.match(r'([\w\.~/]+?):(\w*)',string)
+    if not m2: fName = string # Assume just file
+    else: fName = m2.group(1); vName = m2.group(2)
+    # error('"'+string+'" should be in form file:variable[...]')
+  elif len(m.group(4))>0:
+    error('Unexpected "'+m.group(4)+'" after file:variable[...] specification')
+  else: fName = m.group(1); vName = m.group(2); pSpecs = m.group(3)
+  if pSpecs and len(pSpecs)==0: pSpecs = None
+  if vName and len(vName)==0: vName = None
+  if debug: print 'splitFileVarPos: fName=',fName,'vName=',vName,'pSpecs=',pSpecs
+  return fName, vName, pSpecs
 
 
 # Interpret strSpec and return list of indices
