@@ -66,6 +66,12 @@ def parseCommandLine():
 def processCommands(fileName, variableName, sliceSpecs):
 
   (fileName, vName, pSpecs) = splitFileVarPos(fileName)
+  if vName:
+    if len(variableName): error('Too many inconsistent specifications for variable name')
+    variableName = vName
+  else: (variableName, pSpecs) = splitVarPos(variableName)
+  if debug: print 'fileName=',fileName
+  if debug: print 'variableName=',variableName
 
   # Open netcdf file
   try: rg=Dataset( fileName, 'r' );
@@ -226,6 +232,25 @@ def splitFileVarPos(string):
   if vName and len(vName)==0: vName = None
   if debug: print 'splitFileVarPos: fName=',fName,'vName=',vName,'pSpecs=',pSpecs
   return fName, vName, pSpecs
+
+
+# Splut a string in form of "variable[...]" into parts
+# Valid forms are variable or variable[i,j=,=2.,z=,...]
+def splitVarPos(string):
+  vName = None; pSpecs=None
+  m = re.match(r'(\w+)\[([\w,:=\.]*?)\](.*)',string)
+  if not m: # Try variable instead
+    m2 = re.match(r'\A(\w*)\Z',string)
+    if not m2: error('"'+string+'" should be in form variable[...]')
+    else: vName = m2.group(1)
+    # error('"'+string+'" should be in form file:variable[...]')
+  elif len(m.group(3))>0:
+    error('Unexpected "'+m.group(3)+'" after variable[...] specification')
+  else: vName = m.group(1); pSpecs = m.group(2)
+  if pSpecs and len(pSpecs)==0: pSpecs = None
+  if vName and len(vName)==0: vName = None
+  if debug: print 'splitVarPos: vName=',vName,'pSpecs=',pSpecs
+  return vName, pSpecs
 
 
 # Interpret strSpec and return list of indices
