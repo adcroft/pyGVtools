@@ -60,11 +60,11 @@ def parseCommandLine():
 
   if optCmdLineArgs.debug: debug = True
 
-  processCommands(optCmdLineArgs.filename, optCmdLineArgs.variable, optCmdLineArgs.pos)
+  processSimplePlot(optCmdLineArgs.filename, optCmdLineArgs.variable, optCmdLineArgs.pos)
 
 
-# processCommands() figures out the logic of what to actually do
-def processCommands(fileName, variableName, sliceSpecs):
+# processSimplePlot() figures out the logic of what to actually plot
+def processSimplePlot(fileName, variableName, sliceSpecs):
 
   # fileName might contain string of form file:variable[slices]
   # of variableName and sliceSpecs might be filled. Rearrange as necessary...
@@ -88,19 +88,17 @@ def processCommands(fileName, variableName, sliceSpecs):
   # If no variable is specified, summarize the file contents
   if not variableName:
     print 'No variable name specified! Specify a varible from the following summary of "'\
-          +fileName+'":'
-    print
+          +fileName+'":\n'
     summarizeFile(rg)
     exit(0)
 
   # Get the variable
-  var = ''
   for v in rg.variables:
-    if variableName.lower() == v.lower(): var=v
-  if len(var)==0:
-    print 'Known variables in file: '+''.join( (str(var)+', ' for var in rg.variables) )
+    if variableName.lower() == v.lower(): variableName=v ; break
+  if not variableName in rg.variables:
+    print 'Known variables in file: '+''.join( (str(v)+', ' for v in rg.variables) )
     error('Did not find "'+variableName+'" in file "'+fileName+'".')
-  var = rg.variables[var] # Hereafter, var is the selected variable netcdf object
+  var = rg.variables[variableName] # Hereafter, var is the variable netcdf object
 
   # Process each dimension of the variable. For each dimension, check the first
   # dimension spec for relevence. If any named spec matches the dim, apply it. If not,
