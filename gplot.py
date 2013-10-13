@@ -36,10 +36,10 @@ def parseCommandLine():
   parser.add_argument('filename', type=str,
                       help='netcdf file to read.')
   parser.add_argument('variable', type=str,
-                      nargs='?', default='',
+                      nargs='?', default=None,
                       help='Name of variable to plot. If absent a summary of file contents will be issued.')
   parser.add_argument('pos', type=str,
-                      nargs='*', default='',
+                      nargs='*', default=None,
                       help='Indices or location specification.')
   parser.add_argument('-cm','--colormap', type=str, default='',
                       help='Specify the colormap.')
@@ -67,11 +67,12 @@ def processCommands(fileName, variableName, sliceSpecs):
 
   (fileName, vName, pSpecs) = splitFileVarPos(fileName)
   if vName:
-    if len(variableName): error('Too many inconsistent specifications for variable name')
+    sliceSpecs.insert(0, variableName) # Assume arg was a pos arg instead
+    #if variableName: error('Too many inconsistent specifications for variable name')
     variableName = vName
   else: (variableName, pSpecs) = splitVarPos(variableName)
-  if debug: print 'fileName=',fileName
-  if debug: print 'variableName=',variableName
+  if pSpecs and sliceSpecs: error('Too many positional specifications provided')
+  if debug: print 'fileName=',fileName,'variableName=',variableName,'pSpecs=',pSpecs
 
   # Open netcdf file
   try: rg=Dataset( fileName, 'r' );
@@ -215,40 +216,27 @@ def processCommands(fileName, variableName, sliceSpecs):
   else: plt.show()
 
 
-# Splut a string in form of "file:variable[...]" into parts
+# Split a string in form of "file:variable[...]" into three string parts
 # Valid forms are file, file:variable or file:variable[i,j=,=2.,z=,...]
 def splitFileVarPos(string):
-  fName = None; vName = None; pSpecs=None
-  m = re.match(r'([\w\.~/]+?):(\w+?)\[([\w,:=\.]*?)\](.*)',string)
-  if not m: # Try file:variable instead
-    m2 = re.match(r'([\w\.~/]+?):(\w*)',string)
-    if not m2: fName = string # Assume just file
-    else: fName = m2.group(1); vName = m2.group(2)
-    # error('"'+string+'" should be in form file:variable[...]')
-  elif len(m.group(4))>0:
-    error('Unexpected "'+m.group(4)+'" after file:variable[...] specification')
-  else: fName = m.group(1); vName = m.group(2); pSpecs = m.group(3)
-  if pSpecs and len(pSpecs)==0: pSpecs = None
-  if vName and len(vName)==0: vName = None
+  m = re.match(r'([\w\.~/]+):?(.*)',string)
+  fName = m.group(1)
+  (vName, pSpecs) = splitVarPos(m.group(2))
   if debug: print 'splitFileVarPos: fName=',fName,'vName=',vName,'pSpecs=',pSpecs
   return fName, vName, pSpecs
 
 
-# Splut a string in form of "variable[...]" into parts
+# Split a string in form of "variable[...]" into two string parts
 # Valid forms are variable or variable[i,j=,=2.,z=,...]
 def splitVarPos(string):
-  vName = None; pSpecs=None
-  m = re.match(r'(\w+)\[([\w,:=\.]*?)\](.*)',string)
-  if not m: # Try variable instead
-    m2 = re.match(r'\A(\w*)\Z',string)
-    if not m2: error('"'+string+'" should be in form variable[...]')
-    else: vName = m2.group(1)
-    # error('"'+string+'" should be in form file:variable[...]')
-  elif len(m.group(3))>0:
-    error('Unexpected "'+m.group(3)+'" after variable[...] specification')
-  else: vName = m.group(1); pSpecs = m.group(2)
-  if pSpecs and len(pSpecs)==0: pSpecs = None
-  if vName and len(vName)==0: vName = None
+  vName = None; pSpecs = None
+  if string:
+    m = re.match(r'(\w+)(\[([\w,:=\.]*?)\])?(.*)',string)
+    if m:
+      if len(m.groups())>3 and len(m.group(4))>0: error('Syntax error "'+m.group(4)+'"?')
+      vName = m.group(1)
+      if m.group(3): pSpecs = m.group(3)
+    else: error('Could not decipher "'+string+'" for variable name.')
   if debug: print 'splitVarPos: vName=',vName,'pSpecs=',pSpecs
   return vName, pSpecs
 
