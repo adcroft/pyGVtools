@@ -8,6 +8,7 @@ def error(msg, code=9):
 
 # Try to import required packages/modules
 import re
+import os
 try: import argparse
 except: error('This version of python is not new enough. python 2.7 or newer is required.')
 try: from netCDF4 import Dataset
@@ -65,21 +66,27 @@ def parseCommandLine():
 # processCommands() figures out the logic of what to actually do
 def processCommands(fileName, variableName, sliceSpecs):
 
+  # fileName might contain string of form file:variable[slices]
+  # of variableName and sliceSpecs might be filled. Rearrange as necessary...
+  if debug: print 'fileName=',fileName,'variableName=',variableName,'sliceSpecs=',sliceSpecs
   (fileName, vName, pSpecs) = splitFileVarPos(fileName)
   if vName:
-    sliceSpecs.insert(0, variableName) # Assume arg was a pos arg instead
-    #if variableName: error('Too many inconsistent specifications for variable name')
+    if sliceSpecs: sliceSpecs.insert(0, variableName) # Assume arg was a pos arg instead
     variableName = vName
   else: (variableName, pSpecs) = splitVarPos(variableName)
-  if pSpecs and sliceSpecs: error('Too many positional specifications provided')
-  if debug: print 'fileName=',fileName,'variableName=',variableName,'pSpecs=',pSpecs
+  if pSpecs:
+    if sliceSpecs: sliceSpecs = pSpecs + sliceSpecs
+    else: sliceSpecs = pSpecs
+  if debug: print 'fileName=',fileName,'variableName=',variableName,'sliceSpecs=',sliceSpecs
 
   # Open netcdf file
-  try: rg=Dataset( fileName, 'r' );
-  except: error('There was a problem opening "'+fileName+'".')
+  try: rg=Dataset(fileName, 'r');
+  except:
+    if not os.path.isfile(fileName): error('Could not find file "'+fileName+'"')
+    error('Ther was a problem opening "'+fileName+'".')
 
   # If no variable is specified, summarize the file contents
-  if len(variableName)==0:
+  if not variableName:
     print 'No variable name specified! Specify a varible from the following summary of "'\
           +fileName+'":'
     print
@@ -237,6 +244,7 @@ def splitVarPos(string):
       vName = m.group(1)
       if m.group(3): pSpecs = m.group(3)
     else: error('Could not decipher "'+string+'" for variable name.')
+  if pSpecs: pSpecs = re.split(',',pSpecs)
   if debug: print 'splitVarPos: vName=',vName,'pSpecs=',pSpecs
   return vName, pSpecs
 
