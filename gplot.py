@@ -316,6 +316,7 @@ def constructLabel(ncObj, default=''):
 
 # Returns True if ncObj has attribute "name" that matches "value"
 def isAttrEqualTo(ncObj, name, value):
+  if not ncObj: return False
   if name in ncObj.ncattrs():
     if value.lower() in str(ncObj.getncattr(name)).lower():
       return True
