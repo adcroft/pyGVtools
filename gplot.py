@@ -220,7 +220,15 @@ def processSimplePlot(fileName, variableName, sliceSpecs):
     plt.colorbar()
   if optCmdLineArgs.output:
     plt.savefig(optCmdLineArgs.output,pad_inches=0.)
-  else: plt.show()
+  else:
+    if rank==2:
+      def statusMesg(x,y):
+        i = min(range(len(coordData[0])), key=lambda l: abs(coordData[0][l]-x))
+        j = min(range(len(coordData[1])), key=lambda l: abs(coordData[1][l]-y))
+        if not i==None: return 'x,y=%.3f,%.3f  %s(%i,%i)=%f'%(x,y,variableName,i+1,j+1,data[j,i])
+        else: return 'x,y=%.3f,%.3f'%(x,y)
+      plt.gca().format_coord = statusMesg
+    plt.show()
 
 
 # Split a string in form of "file:variable[...]" into three string parts
