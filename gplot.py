@@ -159,7 +159,7 @@ def processSimplePlot(fileName, variableName, sliceSpecs):
         axisLabel += [constructLabel(rg.variables[dim],dim)]
         coordObj += [rg.variables[dim]]
       else:
-        coordData += [np.array(slices[i])]
+        coordData += [np.array(slices[i])+0.5]
         axisLabel += [dim+' (index)']
         coordObj += [None]
   data = np.ma.masked_array(var[slices])
