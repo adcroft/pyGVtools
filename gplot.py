@@ -223,8 +223,9 @@ def processSimplePlot(fileName, variableName, sliceSpecs):
   else:
     if rank==2:
       def statusMesg(x,y):
-        i = min(range(len(coordData[0])), key=lambda l: abs(coordData[0][l]-x))
-        j = min(range(len(coordData[1])), key=lambda l: abs(coordData[1][l]-y))
+        # -1 needed because of extension for pcolormesh
+        i = min(range(len(coordData[1])-1), key=lambda l: abs(coordData[1][l]-x))
+        j = min(range(len(coordData[0])-1), key=lambda l: abs(coordData[0][l]-y))
         if not i==None: return 'x,y=%.3f,%.3f  %s(%i,%i)=%f'%(x,y,variableName,i+1,j+1,data[j,i])
         else: return 'x,y=%.3f,%.3f'%(x,y)
       plt.gca().format_coord = statusMesg
