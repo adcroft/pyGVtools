@@ -155,13 +155,15 @@ def processSimplePlot(fileName, variableName, sliceSpecs):
   for i,dim in enumerate(dims):
     if len(slices[i])>1:
       if dim in vars:
-        coordData += [rg.variables[dim][slices[i]]]
+        cData = rg.variables[dim][slices[i]]
         axisLabel += [constructLabel(rg.variables[dim],dim)]
         coordObj += [rg.variables[dim]]
       else:
-        coordData += [np.array(slices[i])+0.5]
+        cData = np.array(slices[i])+0.5
         axisLabel += [dim+' (index)']
         coordObj += [None]
+      # Add an extra element to coordinate to force pcolormesh to draw all cells
+      coordData += [np.append(cData,2*cData[-1]-cData[-2])]
   data = np.ma.masked_array(var[slices])
   if debug: print 'axisLabel=',axisLabel
   if debug: print 'coordObj=',coordObj
