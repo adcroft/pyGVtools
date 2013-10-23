@@ -219,6 +219,7 @@ def processSimplePlot(fileName, variableName, sliceSpecs):
     plt.title(constructLabel(var))
     makeGuessAboutCmap()
     plt.colorbar()
+    plt.tight_layout()
   if optCmdLineArgs.output:
     plt.savefig(optCmdLineArgs.output,pad_inches=0.)
   else:
@@ -230,6 +231,20 @@ def processSimplePlot(fileName, variableName, sliceSpecs):
         if not i==None: return 'x,y=%.3f,%.3f  %s(%i,%i)=%f'%(x,y,variableName,i+1,j+1,np.squeeze(data)[j,i])
         else: return 'x,y=%.3f,%.3f'%(x,y)
       plt.gca().format_coord = statusMesg
+      xmin,xmax=plt.xlim(); ymin,ymax=plt.ylim(); axis=plt.gca()
+      def zoom(event): # Scroll wheel up/down
+        if event.button == 'up': scaleFactor = 1/1.5 # deal with zoom in
+        elif event.button == 'down': scaleFactor = 1.5 # deal with zoom out
+        else: scaleFactor = 1.0
+        axmin,axmax=axis.get_xlim(); aymin,aymax=axis.get_ylim();
+        (axmin,axmax),(aymin,aymax) = newLims(
+          (axmin,axmax), (aymin,aymax), (event.xdata, event.ydata),
+          (xmin,xmax), (ymin,ymax), scaleFactor)
+        if axmin==None: return
+        axis.set_xlim(axmin, axmax); axis.set_ylim(aymin, aymax)
+        plt.draw() # force re-draw
+      plt.gcf().canvas.mpl_connect('scroll_event', zoom)
+
     plt.show()
 
 
@@ -320,6 +335,7 @@ def constructLabel(ncObj, default=''):
   label = ''
   if 'long_name' in ncObj.ncattrs():
     label += str(ncObj.getncattr('long_name'))+' '
+  else: label += ncObj._name+' '
   if 'units' in ncObj.ncattrs():
     label += '('+str(ncObj.getncattr('units'))+')'
   if len(label)==0: label = default+' (index)'
@@ -385,6 +401,23 @@ def summarizeFile(rg):
     if 'long_name' in obj.ncattrs(): oString += ' "'+obj.getncattr('long_name')+'"'
     if 'units' in obj.ncattrs(): oString += ' ('+obj.getncattr('units')+')'
     print oString
+
+
+# Calculate a new window by scaling the current window, centering
+# on the cursor if possible.
+def newLims(cur_xlim, cur_ylim, cursor, xlim, ylim, scale_factor):
+  cur_xrange = (cur_xlim[1] - cur_xlim[0])*.5
+  cur_yrange = (cur_ylim[1] - cur_ylim[0])*.5
+  xdata = cursor[0]; ydata = cursor[1]
+  new_xrange = cur_xrange*scale_factor; new_yrange = cur_yrange*scale_factor
+  xdata = min( max( xdata, xlim[0]+new_xrange ), xlim[1]-new_xrange )
+  ydata = min( max( ydata, ylim[0]+new_yrange ), ylim[1]-new_yrange )
+  xL = max( xlim[0], xdata - new_xrange ); xR = min( xlim[1], xdata + new_xrange )
+  yL = max( ylim[0], ydata - new_yrange ); yR = min( ylim[1], ydata + new_yrange )
+  if xL==cur_xlim[0] and xR==cur_xlim[1] and \
+     yL==cur_ylim[0] and yR==cur_ylim[1]: return (None, None), (None, None)
+  return (xL, xR), (yL, yR)
+
 
 
 # Invoke parseCommandLine(), the top-level prodedure
