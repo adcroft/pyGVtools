@@ -235,7 +235,8 @@ def processSimplePlot(fileName, variableName, sliceSpecs):
       def zoom(event): # Scroll wheel up/down
         if event.button == 'up': scaleFactor = 1/1.5 # deal with zoom in
         elif event.button == 'down': scaleFactor = 1.5 # deal with zoom out
-        else: scaleFactor = 1.0
+        elif event.button == 2: scaleFactor = 1.0
+        else: return
         axmin,axmax=axis.get_xlim(); aymin,aymax=axis.get_ylim();
         (axmin,axmax),(aymin,aymax) = newLims(
           (axmin,axmax), (aymin,aymax), (event.xdata, event.ydata),
@@ -244,6 +245,8 @@ def processSimplePlot(fileName, variableName, sliceSpecs):
         axis.set_xlim(axmin, axmax); axis.set_ylim(aymin, aymax)
         plt.draw() # force re-draw
       plt.gcf().canvas.mpl_connect('scroll_event', zoom)
+      plt.gcf().canvas.mpl_connect('button_press_event', zoom)
+
 
     plt.show()
 
