@@ -20,8 +20,10 @@ except: error('Unable to import numpy module. Check your PYTHONPATH.\n'
 try: import matplotlib.pyplot as plt
 except: error('Unable to import matplotlib.pyplot module. Check your PYTHONPATH.\n'
           +'Perhaps try:\n   module load python_matplotlib')
+import warnings
 
 debug = False # Global debugging
+warnings.simplefilter('error', UserWarning)
 
 
 # Parse the command line positional and optional arguments. This is the
@@ -228,7 +230,11 @@ def processSimplePlot(fileName, variableName, sliceSpecs):
         # -1 needed because of extension for pcolormesh
         i = min(range(len(coordData[1])-1), key=lambda l: abs(coordData[1][l]-x))
         j = min(range(len(coordData[0])-1), key=lambda l: abs(coordData[0][l]-y))
-        if not i==None: return 'x,y=%.3f,%.3f  %s(%i,%i)=%f'%(x,y,variableName,i+1,j+1,np.squeeze(data)[j,i])
+        if not i==None:
+          val = np.squeeze(data)[j,i]
+          #if np.isnan(val) or (val is np.ma.masked): return 'x,y=%.3f,%.3f  %s(%i,%i)=NaN'%(x,y,variableName,i+1,j+1)
+          if val is np.ma.masked: return 'x,y=%.3f,%.3f  %s(%i,%i)=NaN'%(x,y,variableName,i+1,j+1)
+          else: return 'x,y=%.3f,%.3f  %s(%i,%i)=%g'%(x,y,variableName,i+1,j+1,val)
         else: return 'x,y=%.3f,%.3f'%(x,y)
       plt.gca().format_coord = statusMesg
       xmin,xmax=plt.xlim(); ymin,ymax=plt.ylim(); axis=plt.gca()
