@@ -220,8 +220,8 @@ def processSimplePlot(fileName, variableName, sliceSpecs):
         if isAttrEqualTo(coordObj[0],'positive','down'): plt.gca().invert_yaxis()
     plt.title(constructLabel(var))
     makeGuessAboutCmap()
-    plt.colorbar()
     plt.tight_layout()
+    plt.colorbar()
   if optCmdLineArgs.output:
     plt.savefig(optCmdLineArgs.output,pad_inches=0.)
   else:
