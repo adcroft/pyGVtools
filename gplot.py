@@ -251,7 +251,8 @@ def processSimplePlot(fileName, variableName, sliceSpecs):
         axis.set_xlim(axmin, axmax); axis.set_ylim(aymin, aymax)
         plt.draw() # force re-draw
       plt.gcf().canvas.mpl_connect('scroll_event', zoom)
-      plt.gcf().canvas.mpl_connect('button_press_event', zoom)
+      def zoom2(event): zoom(event)
+      plt.gcf().canvas.mpl_connect('button_press_event', zoom2)
 
 
     plt.show()
