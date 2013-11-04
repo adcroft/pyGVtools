@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
-# A simple error message generator with optional error code to return to shell
 def error(msg, code=9):
+  """
+  A simple error message generator with optional error code to return to parent shell
+  """
   print 'Error: ' + msg
   exit(code)
 
@@ -26,9 +28,11 @@ debug = False # Global debugging
 warnings.simplefilter('error', UserWarning)
 
 
-# Parse the command line positional and optional arguments. This is the
-# highest level procedure invoked from the very end of the script.
 def parseCommandLine():
+  """
+  Parse the command line positional and optional arguments.
+  This is the highest level procedure invoked from the very end of the script.
+  """
   global debug # Declared global in order to set it
   global optCmdLineArgs # For optional argument handling within routines
 
@@ -36,208 +40,130 @@ def parseCommandLine():
   parser = argparse.ArgumentParser(description=
        'Yada yada yada',
        epilog='Written by A.Adcroft, 2013.')
-  parser.add_argument('filename', type=str,
-                      help='netcdf file to read.')
-  parser.add_argument('variable', type=str,
-                      nargs='?', default=None,
-                      help='Name of variable to plot. If absent a summary of file contents will be issued.')
-  parser.add_argument('pos', type=str,
-                      nargs='*', default=None,
-                      help='Indices or location specification.')
+  parser.add_argument('file_var_slice', type=str,
+		  help='File/variable/slice specification in the form file,variable,slice1,slice2,slice3,...')
   parser.add_argument('-cm','--colormap', type=str, default='',
-                      help='Specify the colormap.')
+                  help='Specify the colormap.')
   parser.add_argument('--clim', type=float, nargs=2,
-                      help='Specify the lower/upper color range.')
+                  help='Specify the lower/upper color range.')
   parser.add_argument('-i','--ignore', type=float, nargs=1,
-                      help='Mask out the given value.')
-  parser.add_argument('-d','--debug', action='store_true',
-                      help='Turn on debugging information.')
+                  help='Mask out the specified value.')
   parser.add_argument('-o','--output', type=str, default='',
-                      help='Name of image file to create.')
+                  help='Name of image file to create.')
   parser.add_argument('--stats', action='store_true',
-                      help='Calculate statistics of viewed data.')
+                  help='Print the statistics of viewed data.')
   parser.add_argument('--list', action='store_true',
-                      help='Print selected data to screen.')
+                  help='Print selected data to terminal.')
+  parser.add_argument('-d','--debug', action='store_true',
+                  help='Turn on debugging information.')
   optCmdLineArgs = parser.parse_args()
 
   if optCmdLineArgs.debug: debug = True
 
-  processSimplePlot(optCmdLineArgs.filename, optCmdLineArgs.variable, optCmdLineArgs.pos)
+  processSimplePlot(optCmdLineArgs.file_var_slice, optCmdLineArgs)
 
 
-# processSimplePlot() figures out the logic of what to actually plot
-def processSimplePlot(fileName, variableName, sliceSpecs):
+def processSimplePlot(fileVarSlice, args):
+  """
+  Generates a plot based on the file/variable/slice specified
+  """
 
-  # fileName might contain string of form file:variable[slices]
-  # of variableName and sliceSpecs might be filled. Rearrange as necessary...
-  if debug: print 'fileName=',fileName,'variableName=',variableName,'sliceSpecs=',sliceSpecs
-  (fileName, vName, pSpecs) = splitFileVarPos(fileName)
-  if vName:
-    if sliceSpecs: sliceSpecs.insert(0, variableName) # Assume arg was a pos arg instead
-    variableName = vName
-  else: (variableName, pSpecs) = splitVarPos(variableName)
-  if pSpecs:
-    if sliceSpecs: sliceSpecs = pSpecs + sliceSpecs
-    else: sliceSpecs = pSpecs
-  if debug: print 'fileName=',fileName,'variableName=',variableName,'sliceSpecs=',sliceSpecs
+  # Extract file, variable and slice specs from fileVarSlice
+  if debug: print 'processSimplePlot: fileVarSlice=',fileVarSlice
+  (fileName, variableName, sliceSpecs) = splitFileVarPos(fileVarSlice)
+  if debug: print 'processSimplePlot: fileName=',fileName,'variableName=',variableName,'sliceSpecs=',sliceSpecs
 
   # Open netcdf file
   try: rg=Dataset(fileName, 'r');
   except:
-    if not os.path.isfile(fileName): error('Could not find file "'+fileName+'"')
-    error('Ther was a problem opening "'+fileName+'".')
+    if os.path.isfile(fileName): error('Ther was a problem opening "'+fileName+'".')
+    error('Could not find file "'+fileName+'".')
 
-  # If no variable is specified, summarize the file contents
+  # If no variable is specified, summarize the file contents and exit
   if not variableName:
     print 'No variable name specified! Specify a varible from the following summary of "'\
           +fileName+'":\n'
     summarizeFile(rg)
     exit(0)
 
-  # Get the variable
+  # Check that the variable is in the file (allowing for case mismatch)
   for v in rg.variables:
     if variableName.lower() == v.lower(): variableName=v ; break
   if not variableName in rg.variables:
     print 'Known variables in file: '+''.join( (str(v)+', ' for v in rg.variables) )
     error('Did not find "'+variableName+'" in file "'+fileName+'".')
-  var = rg.variables[variableName] # Hereafter, var is the variable netcdf object
 
-  # Process each dimension of the variable. For each dimension, check the first
-  # dimension spec for relevence. If any named spec matches the dim, apply it. If not,
-  # apply the first non-specific spec. If there are no general spec's left, use the full
-  # dimension.
-  if debug: print 'All slice specifications=',sliceSpecs
-  reGen = re.compile('[a-zA-Z_]')
-  generalSpecs = [s for s in sliceSpecs for m in [reGen.match(s)] if not m]
-  if debug: print 'All general specifications=',generalSpecs
-  slices = []
-  dims = var.dimensions; vars = rg.variables;
-  for dim in dims:
-    if debug: print 'Processing',dim,' slice specs=',sliceSpecs
-    if len(sliceSpecs)>0: # Look for user provided spec
-      reDim = re.compile(dim+'=', re.IGNORECASE)
-      matchingSliceSpec = [s for s in sliceSpecs for m in [reDim.match(s)] if m]
-      if debug: print '  Matching spec=',matchingSliceSpec
-      # More than one match is an error
-      if len(matchingSliceSpec)>1: error('Only one specification per dimension is allowed.\n'
-          'The following specs appear to be for the same dimension: '+str(matchingSliceSpec))
-      elif len(matchingSliceSpec)==0: # No spec is specific to this dimesion
-        if len(generalSpecs): # Use up a general spec if any
-          matchingSliceSpec = generalSpecs[0]
-          generalSpecs.remove(matchingSliceSpec)
-          if debug: print '  New general specs=',generalSpecs
-          sliceSpecs.remove(matchingSliceSpec) # Pop this spec from the stack
-        else: matchingSliceSpec = ':' # if no general specs left
-      elif len(matchingSliceSpec)==1: # There is one matching specific spec
-        matchingSliceSpec=matchingSliceSpec[0]
-        sliceSpecs.remove(matchingSliceSpec) # Pop this spec from the stack
-    else: matchingSliceSpec = ':' # Stack was empty
-    if dim in vars: dVar = rg.variables[dim]
-    else: dVar = None
-    if debug: slices += [ iRange(rg.dimensions[dim], str(matchingSliceSpec), dVar) ]
-    else:
-      try: slices += [ iRange(rg.dimensions[dim], str(matchingSliceSpec), dVar) ]
-      except: error('Unable to interpret dimension specificion "'+str(matchingSliceSpec)+'".')
-  # Check that all user provided specs were used
-  if len(sliceSpecs)>0: error('Some dimension specifications were not used.\n'
-    +'Specifically, specifications '+''.join(str(s)+' ' for s in sliceSpecs)+' were unusable.\n'
-    +'Variable "'+variableName+'" has dimensions: '+''.join(str(d)+' ' for d in dims)+'\n')
-  if debug: print 'slices=',slices
-
-  # Determine rank of data
-  shape = []
-  for s in slices:
-    shape += [len(s)]
-  rank = len(shape)-shape.count(1)
-  if debug: print 'Requested data shape=',shape,'rank=',rank
-  if rank>2: error('The requested data was multi-dimensional with rank '+str(rank)+'.\n'
-           +'Only 0-, 1- and 2-dimensional data can be processed.')
-  # Now read the coordinate data and variable data
-  coordData=[]; axisLabel=[]; coordObj=[]
-  for i,dim in enumerate(dims):
-    if len(slices[i])>1:
-      if dim in vars:
-        coordData += [rg.variables[dim][slices[i]]]
-        axisLabel += [constructLabel(rg.variables[dim],dim)]
-        coordObj += [rg.variables[dim]]
-      else:
-        coordData += [np.array(slices[i])+0.5]
-        axisLabel += [dim+' (index)']
-        coordObj += [None]
-  data = np.ma.masked_array(var[slices])
-  if debug: print 'axisLabel=',axisLabel
-  if debug: print 'coordObj=',coordObj
+  # Obtain data along with 1D coordinates, labels and limits
+  var1 = NetcdfSlice(rg, variableName, sliceSpecs)
 
   # Optionally mask out a specific value
   if optCmdLineArgs.ignore:
-    data = np.ma.masked_array(data, mask=[data==optCmdLineArgs.ignore])
+    var1.data = np.ma.masked_array(var1.data, mask=[var1.data==optCmdLineArgs.ignore])
 
-  if optCmdLineArgs.list: print 'Data =\n',data
+  if optCmdLineArgs.list: print 'processSimplePlot: Data =\n',var1.data
   if optCmdLineArgs.stats:
-    dMin = np.min(data); dMax = np.max(data)
+    dMin = np.min(var1.data); dMax = np.max(var1.data)
     print 'Mininum=',dMin,'Maximum=',dMax
-    dMin = np.min(data[data!=0]); dMax = np.max(data[data!=0])
-    print 'Mininum=',dMin,'Maximum=',dMax,'(ignoring zeros)'
+    #dMin = np.min(var1.data[var1.data!=0]); dMax = np.max(var1.data[var1.data!=0])
+    #print 'Mininum=',dMin,'Maximum=',dMax,'(ignoring zeros)'
   # Now plot
-  if rank==0: print data[0]
-  elif rank==1: # Line plot
-    if len(data)==1: data=data[0]
-    if isAttrEqualTo(coordObj[0],'cartesian_axis','z'): # Transpose 1d plot
-      plt.plot(data,coordData[0])
-      plt.xlabel(constructLabel(var))
-      plt.ylabel(axisLabel[0])
-      plt.ylim(coordData[0][0], coordData[0][-1])
-      if coordData[0][0]>coordData[0][-1]: plt.gca().invert_yaxis()
-      if isAttrEqualTo(coordObj[0],'positive','down'): plt.gca().invert_yaxis()
+  if var1.rank==0: print var1.data
+  elif var1.rank==1: # Line plot
+    if isAttrEqualTo(var1.coordObjs[0],'cartesian_axis','z'): # Transpose 1d plot
+      plt.plot(var1.data,var1.coordData[0])
+      plt.xlabel(var1.label)
+      plt.ylabel(var1.coordLabels[0]); plt.ylim(var1.coordLimits[0][0], var1.coordLimits[0][1])
+      if var1.coordData[0][0]>var1.coordData[0][-1]: plt.gca().invert_yaxis()
+      if isAttrEqualTo(var1.coordObjs[0],'positive','down'): plt.gca().invert_yaxis()
     else: # Normal 1d plot
-      plt.plot(coordData[0],data)
-      plt.xlabel(axisLabel[0])
-      plt.xlim(coordData[0][0], coordData[0][-1])
-      plt.ylabel(constructLabel(var))
-  elif rank==2: # Pseudo color plot
-    if debug: print 'coordData[1]=',coordData[1]
-    if debug: print 'coordData[0]=',coordData[0]
+      plt.plot(var1.coordData[0],var1.data)
+      plt.xlabel(var1.coordLabels[0]); plt.xlim(var1.coordLimits[0][0], var1.coordLimits[0][-1])
+      plt.ylabel(var1.label)
+  elif var1.rank==2: # Pseudo color plot
+    if debug: print 'processSimplePlot: coordData[1]=',var1.coordData[1]
+    if debug: print 'processSimplePlot: coordData[0]=',var1.coordData[0]
     # Add an extra element to coordinate to force pcolormesh to draw all cells
-    coordData[0] = np.append(coordData[0],2*coordData[0][-1]-coordData[0][-2])
-    coordData[1] = np.append(coordData[1],2*coordData[1][-1]-coordData[1][-2])
-    if isAttrEqualTo(coordObj[1],'cartesian_axis','z'): # Transpose 1d plot
-      plt.pcolormesh(coordData[0],coordData[1],np.transpose(np.squeeze(data)))
-      plt.xlabel(axisLabel[0])
-      plt.xlim(coordData[0][0], coordData[0][-1])
-      plt.ylabel(axisLabel[1])
-      plt.ylim(coordData[1][0], coordData[1][-1])
-      if isAttrEqualTo(coordObj[1],'cartesian_axis','z'): # Z on y axis ?
-        if coordData[1][0]>coordData[1][-1]: plt.gca().invert_yaxis()
-        if isAttrEqualTo(coordObj[1],'positive','down'): plt.gca().invert_yaxis()
+    coordData = []
+    coordData.append( np.append(var1.coordData[0],2*var1.coordData[0][-1]-var1.coordData[0][-2]) )
+    coordData.append( np.append(var1.coordData[1],2*var1.coordData[1][-1]-var1.coordData[1][-2]) )
+    if isAttrEqualTo(var1.coordObjs[1],'cartesian_axis','z'): # Happens for S(t,z)
+      xCoord = coordData[0]; yCoord = coordData[1]; zData = np.transpose(var1.data)
+      xLabel = var1.coordLabels[0]; xLims = var1.coordLimits[0]
+      yLabel = var1.coordLabels[1]; yLims = var1.coordLimits[1]
+      yObj = var1.coordObjs[1]
     else:
-      plt.pcolormesh(coordData[1],coordData[0],np.squeeze(data))
-      plt.xlabel(axisLabel[1])
-      plt.xlim(coordData[1][0], coordData[1][-1])
-      plt.ylabel(axisLabel[0])
-      plt.ylim(coordData[0][0], coordData[0][-1])
-      if isAttrEqualTo(coordObj[0],'cartesian_axis','z'): # Z on y axis ?
-        if coordData[0][0]>coordData[0][-1]: plt.gca().invert_yaxis()
-        if isAttrEqualTo(coordObj[0],'positive','down'): plt.gca().invert_yaxis()
-    plt.title(constructLabel(var))
+      xCoord = coordData[1]; yCoord = coordData[0]; zData = var1.data
+      xLabel = var1.coordLabels[1]; xLims = var1.coordLimits[1]
+      yLabel = var1.coordLabels[0]; yLims = var1.coordLimits[0]
+      yObj = var1.coordObjs[0]
+    plt.pcolormesh(xCoord,yCoord,zData)
+    if isAttrEqualTo(yObj,'cartesian_axis','z'): # Z on y axis ?
+      if yCoord[0]>yCoord[-1]: plt.gca().invert_yaxis(); yLims = reversed(yLims)
+      if isAttrEqualTo(yObj,'positive','down'): plt.gca().invert_yaxis(); yLims = reversed(yLims)
+    plt.title(var1.label)
+    plt.xlim(xLims); plt.ylim(yLims)
     makeGuessAboutCmap()
     plt.tight_layout()
     plt.colorbar()
   if optCmdLineArgs.output:
     plt.savefig(optCmdLineArgs.output,pad_inches=0.)
-  else:
-    if rank==2:
+  else: # Interactive
+    if var1.rank==2:
       def statusMesg(x,y):
         # -1 needed because of extension for pcolormesh
-        i = min(range(len(coordData[1])-1), key=lambda l: abs(coordData[1][l]-x))
-        j = min(range(len(coordData[0])-1), key=lambda l: abs(coordData[0][l]-y))
+        i = min(range(len(xCoord)-1), key=lambda l: abs(xCoord[l]-x))
+        j = min(range(len(yCoord)-1), key=lambda l: abs(yCoord[l]-y))
         if not i==None:
-          val = np.squeeze(data)[j,i]
+          val = zData[j,i]
           #if np.isnan(val) or (val is np.ma.masked): return 'x,y=%.3f,%.3f  %s(%i,%i)=NaN'%(x,y,variableName,i+1,j+1)
           if val is np.ma.masked: return 'x,y=%.3f,%.3f  %s(%i,%i)=NaN'%(x,y,variableName,i+1,j+1)
           else: return 'x,y=%.3f,%.3f  %s(%i,%i)=%g'%(x,y,variableName,i+1,j+1,val)
         else: return 'x,y=%.3f,%.3f'%(x,y)
       plt.gca().format_coord = statusMesg
-      xmin,xmax=plt.xlim(); ymin,ymax=plt.ylim(); axis=plt.gca()
+      #xmin,xmax=plt.xlim(); ymin,ymax=plt.ylim();
+      axis=plt.gca()
+      xmin,xmax=axis.get_xlim(); ymin,ymax=axis.get_ylim();
+      print 'ymin,max=',ymin,ymax
       def zoom(event): # Scroll wheel up/down
         if event.button == 'up': scaleFactor = 1/1.5 # deal with zoom in
         elif event.button == 'down': scaleFactor = 1.5 # deal with zoom out
@@ -253,14 +179,181 @@ def processSimplePlot(fileName, variableName, sliceSpecs):
       plt.gcf().canvas.mpl_connect('scroll_event', zoom)
       def zoom2(event): zoom(event)
       plt.gcf().canvas.mpl_connect('button_press_event', zoom2)
-
-
     plt.show()
 
 
-# Split a string in form of "file:variable[...]" into three string parts
-# Valid forms are file, file:variable or file:variable[i,j=,=2.,z=,...]
+class NetcdfSlice:
+  """
+  Class for reading a slice of data from a netcdf using convenient index or coordinate ranges.
+  """
+  def __init__(self, rootGroup, variableName, sliceSpecs):
+    """
+    Match each slice listed in sliceSpecs with a dimension of variableName in rootGroup and read
+    on that corresponding subset of data
+    """
+    variableHandle = rootGroup.variables[variableName]
+    if debug: print 'NetcdfSlice: variableHandle=',variableHandle
+    variableDims = variableHandle.dimensions
+    if debug: print 'NetcdfSlice: variableDims=',variableDims
+    if len(sliceSpecs)>len(variableDims):
+      error('Too many coordinate slices specified! Variable "'+variableName+
+          '" has %i dimensions but you specified %i.'
+          % ( len(variableDims), len(sliceSpecs) ) )
+  
+    # Separate provided slices into named and general
+    namedSlices = []; generalSlices = []
+    reGen = re.compile('[a-zA-Z_]')
+    for s in sliceSpecs:
+      if reGen.match(s): namedSlices.append(s)
+      else: generalSlices.append(s)
+    if debug:
+      print 'NetcdfSlice: generalSlices=',generalSlices
+      print 'NetcdfSlice: namedSlices=',namedSlices
+  
+    # Rebuild sliceSpecs by matching each of the variables actual dimensions to a named or general slice
+    sliceSpecs = []
+    for d in variableDims:
+      thisSlice = None
+      for s in namedSlices: # First look through the named slices
+        n,v = s.split('=')
+        if n==''+d:
+          thisSlice = s
+          namedSlices.remove(s)
+          break
+      if (not thisSlice) and len(generalSlices)>0: # Now try a general slice
+        thisSlice = generalSlices[0]
+        del generalSlices[0]
+      if not thisSlice: thisSlice = ':' # If we ran out of general slices use a default "all" slice
+      sliceSpecs.append(thisSlice)
+    if debug: print 'NetcdfSlice: sliceSpecs=',sliceSpecs
+    if len(namedSlices): error('The named dimension in "%s" is not a dimension of the variable "%s".'
+                                % (namedSlices[0], variableName) )
+    if len(generalSlices): error('There is an impossible problem. I should probably be debugged.')
+  
+    # Now interpret the slice specification for each dimensions
+    slices1 = []; slices2 = []; labels = []; limits = []; coordData = []; coordObjs = []
+    for d,s in zip(variableDims, sliceSpecs):
+      equalsSplit = re.match("""
+          (                          # A super group of the next two groups
+          (?P<lhs>[A-Za-z0-9_]*?)    # An optional dimension name
+          (?P<equals>=)              # Equals
+          )?                         # Both the dimension name and equals are optional
+          (?P<rhs>                   # Super group of everything on the RHS
+          (?P<low>[0-9Ee\.\\+\\-]*)  # Valid number
+          (?P<colon>:)?              # Colon separates low:high parts of range
+          (?P<high>[0-9Ee\.\\+\\-]*) # Valid number
+          )                          # Any of the three previous groups is optional but at least one is needed
+          (?P<excess>.*)             # Nothing else is allowed but this will catch anything else
+          """, s, re.VERBOSE)
+      if debug: print 'NetcdfSlice: Interpretting "%s", groups='%(s),equalsSplit.groups()
+      lhsEquals, lhs, equals, rhs, low, colon, high, excess = equalsSplit.groups()
+      if len(excess)>0: error('Syntax error: could not interpret "'+s+'".')
+      if len(rhs)==0: error('Syntax error: could not find range on RHS of "'+s+'".')
+      if debug:
+        print 'NetcdfSlice: Interpretting "%s", name = "%s"' % (s, lhs)
+        print 'NetcdfSlice: Interpretting "%s", equals provided "%s"' % (s, equals)
+        print 'NetcdfSlice: Interpretting "%s", ranges provided "%s"' % (s, colon)
+        print 'NetcdfSlice: Interpretting "%s", low range "%s"' % (s, low)
+        print 'NetcdfSlice: Interpretting "%s", high range "%s"' % (s, high)
+  
+      # Read the entire coordinate for this dimension
+      dimensionHandle = rootGroup.dimensions[d]
+      if d in rootGroup.variables:
+        dimensionVariableHandle = rootGroup.variables[d]
+        dimensionValues = dimensionVariableHandle[:]
+        labels.append( constructLabel(dimensionVariableHandle, d) )
+      else:
+        dimensionVariableHandle = None
+        dimensionValues = np.arange( dimensionHandle.size ) + 1
+        labels.append(d+' (index)')
+      coordObjs.append( dimensionVariableHandle )
+      if equals==None: # Handle case where index space was specified
+        # Check that only integers were provided
+        def stringIsInt(s):
+          if len(s)==0: return True
+          try: f=float(s)
+          except ValueError: return False
+          try: i=int(s)
+          except ValueError: return False
+          return f==float(i)
+        if not stringIsInt(low):
+          error('The lower end of the range "%s" must be an integer'%(s))
+        if not stringIsInt(high):
+          error('The upper end of the range "%s" must be an integer'%(s))
+        if low=='': indexBegin = 0
+        else: indexBegin = int(low) - 1 # Convert from Fortran indexing
+        if colon==None: indexEnd = indexBegin
+        else:
+          if high=='': indexEnd = len(dimensionHandle) - 1
+          else: indexEnd = int(high) - 1 # Convert from Fortran indexing
+      else: # An equals was specified so the RHS low:high is in coordinate space
+        if low=='': indexBegin = 0
+        else: indexBegin = min(range(len(dimensionValues)), key=lambda i: abs(dimensionValues[i]-float(low)))
+        if colon==None: indexEnd = indexBegin
+        else:
+          if high=='': indexEnd = len(dimensionHandle) - 1
+          else: indexEnd = min(range(len(dimensionValues)), key=lambda i: abs(dimensionValues[i]-float(high)))
+      if debug: print 'NetcdfSlice: Interpretting %s, begin:end = %i,%i' % (s,indexBegin,indexEnd)
+      if indexEnd<indexBegin:
+        if dimensionValues[1]<dimensionValues[0]: indexBegin, indexEnd = indexEnd, indexBegin
+        elif isAttrEqualTo( dimensionVariableHandle, 'cartesian_axis', 'x'):
+          print 'Note: Assuming modulo behavior for specification "%s" on dimension "%s"' %(s, d)
+        else: error('Index ranges are inverted for %s'%(s))
+      # Extrapolate for coordinate bounds
+      if len(dimensionValues)>1:
+        cMin = 1.5*dimensionValues[0] - 0.5*dimensionValues[1]
+        cMax = 1.5*dimensionValues[-1] - 0.5*dimensionValues[-2]
+        cRange = cMax - cMin
+      else: cMin = dimensionValues[0]; cMax = cMin; cRange = 0.
+      # Assign coordinateData (currently assume variable corresponding to dimension is 1D)
+      if indexEnd>=indexBegin:
+        indices1=slice(indexBegin, indexEnd+1); indices2 = None
+        slices1.append( indices1 ); slices2.append( indices1 )
+        coordinateData = dimensionValues[indices1]
+      else:
+        indices1 = slice(indexBegin, -1); indices2 = slice(0, indexEnd+1)
+        slices1.append( indices1 ); slices2.append( indices2 )
+        coordinateData = np.append(dimensionValues[indices1], dimensionValues[indices2]+cRange)
+      if debug: print d,'=',coordinateData
+      # Now record the actual bounds of coordinateData
+      if len(coordinateData)>1:
+        cMin = 1.5*coordinateData[0] - 0.5*coordinateData[1]
+        cMax = 1.5*coordinateData[-1] - 0.5*coordinateData[-2]
+        cRange = cMax - cMin
+      else: cMin = coordinateData[0]; cMax = cMin; cRange = 0.
+      limits.append((cMin, cMax))
+      coordData.append( coordinateData )
+    if slices1==slices2: variableData = variableHandle[slices1]
+    else: variableData = np.append(variableHandle[slices1], variableHandle[slices2], axis=len(slices2)-1)
+
+    # Remove singleton dimensions, recording values
+    singletons = []; idel = []
+    for i, cd in enumerate(coordData):
+      if len(cd)==1: idel.insert(0, i)
+    for i in idel: del coordData[i]; del coordObjs[i]; del labels[i]; del limits[i]
+    if debug: print 'singletons=',singletons
+    variableData = np.squeeze(variableData)
+
+    # Attributes of class
+    self.slices1 = slices1
+    self.slices2 = slices2
+    self.coordData = coordData
+    self.coordLabels = labels
+    self.coordObjs = coordObjs
+    self.coordLimits = limits
+    self.data = variableData
+    self.label = constructLabel(variableHandle, variableName)
+    self.apparentRank = len(slices1)
+    self.singletons = singletons
+    self.naturalShape = variableHandle.shape
+    self.rank = len(variableData.shape)
+
+
 def splitFileVarPos(string):
+  """
+  Split a string in form of "file:variable[...]" into three string parts
+  Valid forms are file, file:variable or file:variable[i,j=,=2.,z=,...]
+  """
   m = re.match(r'([\w\.~/]+):?(.*)',string)
   fName = m.group(1)
   (vName, pSpecs) = splitVarPos(m.group(2))
@@ -268,12 +361,14 @@ def splitFileVarPos(string):
   return fName, vName, pSpecs
 
 
-# Split a string in form of "variable[...]" into two string parts
-# Valid forms are variable or variable[i,j=,=2.,z=,...]
 def splitVarPos(string):
+  """
+  Split a string in form of "variable[...]" into two string parts
+  Valid forms are variable or variable[i,j=,=2.,z=,...]
+  """
   vName = None; pSpecs = None
   if string:
-    m = re.match(r'(\w+)(\[([\w,:=\.]*?)\])?(.*)',string)
+    m = re.match('(\w+)(\[([\w,:=\.\\+\\-EeNnDd]*?)\])?(.*)',string)
     if m:
       if len(m.groups())>3 and len(m.group(4))>0: error('Syntax error "'+m.group(4)+'"?')
       vName = m.group(1)
@@ -339,9 +434,11 @@ def coord2index(coordList, coordVal, roundUp=False):
   return ind
 
 
-# Returns a string combing CF attiributes "long_name" and "units"
 def constructLabel(ncObj, default=''):
-  if debug: print 'ncObj=',ncObj
+  """
+  Returns a string combining CF attiributes "long_name" and "units"
+  """
+  if debug: print 'constructLabel: ncObj=',ncObj
   label = ''
   if 'long_name' in ncObj.ncattrs():
     label += str(ncObj.getncattr('long_name'))+' '
@@ -352,8 +449,10 @@ def constructLabel(ncObj, default=''):
   return label
 
 
-# Returns True if ncObj has attribute "name" that matches "value"
 def isAttrEqualTo(ncObj, name, value):
+  """
+  Returns True if ncObj has attribute "name" that matches "value"
+  """
   if not ncObj: return False
   if name in ncObj.ncattrs():
     if value.lower() in str(ncObj.getncattr(name)).lower():
@@ -421,13 +520,16 @@ def newLims(cur_xlim, cur_ylim, cursor, xlim, ylim, scale_factor):
   xdata = cursor[0]; ydata = cursor[1]
   new_xrange = cur_xrange*scale_factor; new_yrange = cur_yrange*scale_factor
   xdata = min( max( xdata, xlim[0]+new_xrange ), xlim[1]-new_xrange )
-  ydata = min( max( ydata, ylim[0]+new_yrange ), ylim[1]-new_yrange )
   xL = max( xlim[0], xdata - new_xrange ); xR = min( xlim[1], xdata + new_xrange )
-  yL = max( ylim[0], ydata - new_yrange ); yR = min( ylim[1], ydata + new_yrange )
+  if ylim[1]>ylim[0]:
+    ydata = min( max( ydata, ylim[0]+new_yrange ), ylim[1]-new_yrange )
+    yL = max( ylim[0], ydata - new_yrange ); yR = min( ylim[1], ydata + new_yrange )
+  else:
+    ydata = min( max( ydata, ylim[1]-new_yrange ), ylim[0]+new_yrange )
+    yR = max( ylim[1], ydata + new_yrange ); yL = min( ylim[0], ydata - new_yrange )
   if xL==cur_xlim[0] and xR==cur_xlim[1] and \
      yL==cur_ylim[0] and yR==cur_ylim[1]: return (None, None), (None, None)
   return (xL, xR), (yL, yR)
-
 
 
 # Invoke parseCommandLine(), the top-level prodedure
