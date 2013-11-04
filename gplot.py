@@ -195,7 +195,7 @@ class NetcdfSlice:
     if debug: print 'NetcdfSlice: variableHandle=',variableHandle
     variableDims = variableHandle.dimensions
     if debug: print 'NetcdfSlice: variableDims=',variableDims
-    if len(sliceSpecs)>len(variableDims):
+    if not (sliceSpecs==None) and len(sliceSpecs)>len(variableDims):
       error('Too many coordinate slices specified! Variable "'+variableName+
           '" has %i dimensions but you specified %i.'
           % ( len(variableDims), len(sliceSpecs) ) )
@@ -203,9 +203,10 @@ class NetcdfSlice:
     # Separate provided slices into named and general
     namedSlices = []; generalSlices = []
     reGen = re.compile('[a-zA-Z_]')
-    for s in sliceSpecs:
-      if reGen.match(s): namedSlices.append(s)
-      else: generalSlices.append(s)
+    if not sliceSpecs==None:
+      for s in sliceSpecs:
+        if reGen.match(s): namedSlices.append(s)
+        else: generalSlices.append(s)
     if debug:
       print 'NetcdfSlice: generalSlices=',generalSlices
       print 'NetcdfSlice: namedSlices=',namedSlices
@@ -264,7 +265,7 @@ class NetcdfSlice:
         labels.append( constructLabel(dimensionVariableHandle, d) )
       else:
         dimensionVariableHandle = None
-        dimensionValues = np.arange( dimensionHandle.size ) + 1
+        dimensionValues = np.arange( len(dimensionHandle) ) + 1
         labels.append(d+' (index)')
       coordObjs.append( dimensionVariableHandle )
       if equals==None: # Handle case where index space was specified
