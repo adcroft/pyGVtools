@@ -179,6 +179,10 @@ def processSimplePlot(fileVarSlice, args):
       plt.gcf().canvas.mpl_connect('scroll_event', zoom)
       def zoom2(event): zoom(event)
       plt.gcf().canvas.mpl_connect('button_press_event', zoom2)
+      def keyPress(event):
+        if event.key=='q':
+            exit(0)
+      plt.gcf().canvas.mpl_connect('key_press_event', keyPress)
     plt.show()
 
 
