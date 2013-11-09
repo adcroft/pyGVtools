@@ -108,6 +108,10 @@ def processSimplePlot(fileVarSlice, args):
     #print 'Mininum=',dMin,'Maximum=',dMax,'(ignoring zeros)'
   # Now plot
   if var1.rank==0: print var1.data
+  elif var1.rank>2: # Handle the 5D dimensional time traveller
+    print 'Variable name "%s" has rank %i.\nI can only plot 1D and 2D data.\n\nFile summary is:"'%(variableName, var1.rank)
+    summarizeFile(rg)
+    error('Rank of requested data is too large to plot')
   elif var1.rank==1: # Line plot
     if isAttrEqualTo(var1.coordObjs[0],'cartesian_axis','z'): # Transpose 1d plot
       plt.plot(var1.data,var1.coordData[0])
@@ -163,7 +167,6 @@ def processSimplePlot(fileVarSlice, args):
       #xmin,xmax=plt.xlim(); ymin,ymax=plt.ylim();
       axis=plt.gca()
       xmin,xmax=axis.get_xlim(); ymin,ymax=axis.get_ylim();
-      print 'ymin,max=',ymin,ymax
       def zoom(event): # Scroll wheel up/down
         if event.button == 'up': scaleFactor = 1/1.5 # deal with zoom in
         elif event.button == 'down': scaleFactor = 1.5 # deal with zoom out
