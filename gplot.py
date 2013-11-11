@@ -62,18 +62,18 @@ def parseCommandLine():
 
   if optCmdLineArgs.debug: debug = True
 
-  processSimplePlot(optCmdLineArgs.file_var_slice, optCmdLineArgs)
+  createUI(optCmdLineArgs.file_var_slice, optCmdLineArgs)
 
 
-def processSimplePlot(fileVarSlice, args):
+def createUI(fileVarSlice, args):
   """
   Generates a plot based on the file/variable/slice specified
   """
 
   # Extract file, variable and slice specs from fileVarSlice
-  if debug: print 'processSimplePlot: fileVarSlice=',fileVarSlice
+  if debug: print 'createUI: fileVarSlice=',fileVarSlice
   (fileName, variableName, sliceSpecs) = splitFileVarPos(fileVarSlice)
-  if debug: print 'processSimplePlot: fileName=',fileName,'variableName=',variableName,'sliceSpecs=',sliceSpecs
+  if debug: print 'createUI: fileName=',fileName,'variableName=',variableName,'sliceSpecs=',sliceSpecs
 
   # Open netcdf file
   try: rg=Dataset(fileName, 'r');
@@ -107,7 +107,7 @@ def processSimplePlot(fileVarSlice, args):
   if optCmdLineArgs.ignore:
     var1.data = np.ma.masked_array(var1.data, mask=[var1.data==optCmdLineArgs.ignore])
 
-  if optCmdLineArgs.list: print 'processSimplePlot: Data =\n',var1.data
+  if optCmdLineArgs.list: print 'createUI: Data =\n',var1.data
   if optCmdLineArgs.stats:
     dMin = np.min(var1.data); dMax = np.max(var1.data)
     print 'Mininum=',dMin,'Maximum=',dMax
@@ -129,8 +129,8 @@ def processSimplePlot(fileVarSlice, args):
       plt.xlabel(var1.coordLabels[0]); plt.xlim(var1.coordLimits[0][0], var1.coordLimits[0][-1])
       plt.ylabel(var1.label)
   elif var1.rank==2: # Pseudo color plot
-    if debug: print 'processSimplePlot: coordData[1]=',var1.coordData[1]
-    if debug: print 'processSimplePlot: coordData[0]=',var1.coordData[0]
+    if debug: print 'createUI: coordData[1]=',var1.coordData[1]
+    if debug: print 'createUI: coordData[0]=',var1.coordData[0]
     # Add an extra element to coordinate to force pcolormesh to draw all cells
     coordData = []
     coordData.append( np.append(var1.coordData[0],2*var1.coordData[0][-1]-var1.coordData[0][-2]) )
