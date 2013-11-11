@@ -98,6 +98,11 @@ def processSimplePlot(fileVarSlice, args):
   # Obtain data along with 1D coordinates, labels and limits
   var1 = NetcdfSlice(rg, variableName, sliceSpecs)
 
+  if var1.rank>2: # Intercept requests for ranks >2
+    print 'Variable name "%s" has rank %i.\nI can only plot 1D and 2D data.\n\nFile summary is:"'%(variableName, var1.rank)
+    summarizeFile(rg)
+    raise MyError('Rank of requested data is too large to plot')
+
   # Optionally mask out a specific value
   if optCmdLineArgs.ignore:
     var1.data = np.ma.masked_array(var1.data, mask=[var1.data==optCmdLineArgs.ignore])
@@ -110,10 +115,6 @@ def processSimplePlot(fileVarSlice, args):
     #print 'Mininum=',dMin,'Maximum=',dMax,'(ignoring zeros)'
   # Now plot
   if var1.rank==0: print var1.data
-  elif var1.rank>2: # Handle the 5D dimensional time traveller
-    print 'Variable name "%s" has rank %i.\nI can only plot 1D and 2D data.\n\nFile summary is:"'%(variableName, var1.rank)
-    summarizeFile(rg)
-    raise MyError('Rank of requested data is too large to plot')
   elif var1.rank==1: # Line plot
     if isAttrEqualTo(var1.coordObjs[0],'cartesian_axis','z'): # Transpose 1d plot
       plt.plot(var1.data,var1.coordData[0])
