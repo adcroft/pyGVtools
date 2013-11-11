@@ -117,13 +117,15 @@ def processSimplePlot(fileVarSlice, args):
   if var1.rank==0: print var1.data
   elif var1.rank==1: # Line plot
     if isAttrEqualTo(var1.coordObjs[0],'cartesian_axis','z'): # Transpose 1d plot
-      plt.plot(var1.data,var1.coordData[0])
+      xCoord = var1.data ; yData = var1.coordData[0]
+      plt.plot(var1.data, var1.coordData[0])
       plt.xlabel(var1.label)
       plt.ylabel(var1.coordLabels[0]); plt.ylim(var1.coordLimits[0][0], var1.coordLimits[0][1])
       if var1.coordData[0][0]>var1.coordData[0][-1]: plt.gca().invert_yaxis()
       if isAttrEqualTo(var1.coordObjs[0],'positive','down'): plt.gca().invert_yaxis()
     else: # Normal 1d plot
-      plt.plot(var1.coordData[0],var1.data)
+      xCoord = var1.coordData[0]; yData = var1.data
+      plt.plot(var1.coordData[0], var1.data)
       plt.xlabel(var1.coordLabels[0]); plt.xlim(var1.coordLimits[0][0], var1.coordLimits[0][-1])
       plt.ylabel(var1.label)
   elif var1.rank==2: # Pseudo color plot
@@ -155,18 +157,27 @@ def processSimplePlot(fileVarSlice, args):
   if optCmdLineArgs.output:
     plt.savefig(optCmdLineArgs.output,pad_inches=0.)
   else: # Interactive
-    if var1.rank==2:
+    def keyPress(event):
+      if event.key=='q': exit(0)
+    if var1.rank==1:
+      def statusMesg(x,y):
+        # -1 needed because of extension for pcolormesh
+        i = min(range(len(xCoord)-1), key=lambda l: abs(xCoord[l]-x))
+        if not i==None:
+          val = yData[i]
+          if val is np.ma.masked: return 'x=%.3f  %s(%i)=NaN'%(x,variableName,i+1)
+          else: return 'x=%.3f  %s(%i)=%g'%(x,variableName,i+1,val)
+        else: return 'x=%.3f y=%.3f'%(x,y)
+    elif var1.rank==2:
       def statusMesg(x,y):
         # -1 needed because of extension for pcolormesh
         i = min(range(len(xCoord)-1), key=lambda l: abs(xCoord[l]-x))
         j = min(range(len(yCoord)-1), key=lambda l: abs(yCoord[l]-y))
         if not i==None:
           val = zData[j,i]
-          #if np.isnan(val) or (val is np.ma.masked): return 'x,y=%.3f,%.3f  %s(%i,%i)=NaN'%(x,y,variableName,i+1,j+1)
           if val is np.ma.masked: return 'x,y=%.3f,%.3f  %s(%i,%i)=NaN'%(x,y,variableName,i+1,j+1)
           else: return 'x,y=%.3f,%.3f  %s(%i,%i)=%g'%(x,y,variableName,i+1,j+1,val)
         else: return 'x,y=%.3f,%.3f'%(x,y)
-      plt.gca().format_coord = statusMesg
       #xmin,xmax=plt.xlim(); ymin,ymax=plt.ylim();
       axis=plt.gca()
       xmin,xmax=axis.get_xlim(); ymin,ymax=axis.get_ylim();
@@ -185,10 +196,8 @@ def processSimplePlot(fileVarSlice, args):
       plt.gcf().canvas.mpl_connect('scroll_event', zoom)
       def zoom2(event): zoom(event)
       plt.gcf().canvas.mpl_connect('button_press_event', zoom2)
-      def keyPress(event):
-        if event.key=='q':
-            exit(0)
-      plt.gcf().canvas.mpl_connect('key_press_event', keyPress)
+    plt.gca().format_coord = statusMesg
+    plt.gcf().canvas.mpl_connect('key_press_event', keyPress)
     plt.show()
 
 
