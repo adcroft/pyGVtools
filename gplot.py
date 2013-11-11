@@ -97,11 +97,10 @@ def createUI(fileVarSlice, args):
 
   # Obtain meta data along with 1D coordinates, labels and limits
   var1 = NetcdfSlice(rg, variableName, sliceSpecs)
-
-  if var1.rank>2: # Intercept requests for ranks >2
-    print 'Variable name "%s" has resolved rank %i.\nI can only plot 1D and 2D data.\n\nFile summary is:\n'%(variableName, var1.rank)
+  if var1.rank>2: # Intercept requests for rank >2
     summarizeFile(rg); print
-    raise MyError('Rank of requested data is too large to plot')
+    raise MyError( 'Variable name "%s" has resolved rank %i. Only 1D and 2D data can be plotted until you buy a holgraphic display.'%(variableName, var1.rank))
+  var1.getData() # Actually read data from file
 
   var1.getData() # Actually read data from file
 
