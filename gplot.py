@@ -154,6 +154,14 @@ def processSimplePlot(fileVarSlice, args):
     makeGuessAboutCmap()
     plt.tight_layout()
     plt.colorbar()
+  axis=plt.gca()
+  if var1.singletons:
+    text = ''
+    for name, val, units in var1.singletons:
+      if len(text): text = text+'   '
+      text = text + name + ' = ' + str(val)
+      if units: text = text + ' ('+units+')'
+    axis.annotate(text, xy=(0.005,.995), xycoords='figure fraction', verticalalignment='top', fontsize=8)
   if optCmdLineArgs.output:
     plt.savefig(optCmdLineArgs.output,pad_inches=0.)
   else: # Interactive
@@ -178,8 +186,6 @@ def processSimplePlot(fileVarSlice, args):
           if val is np.ma.masked: return 'x,y=%.3f,%.3f  %s(%i,%i)=NaN'%(x,y,variableName,i+1,j+1)
           else: return 'x,y=%.3f,%.3f  %s(%i,%i)=%g'%(x,y,variableName,i+1,j+1,val)
         else: return 'x,y=%.3f,%.3f'%(x,y)
-      #xmin,xmax=plt.xlim(); ymin,ymax=plt.ylim();
-      axis=plt.gca()
       xmin,xmax=axis.get_xlim(); ymin,ymax=axis.get_ylim();
       def zoom(event): # Scroll wheel up/down
         if event.button == 'up': scaleFactor = 1/1.5 # deal with zoom in
@@ -251,7 +257,8 @@ class NetcdfSlice:
     if len(generalSlices): raise MyError('There is an impossible problem. I should probably be debugged.')
   
     # Now interpret the slice specification for each dimensions
-    slices1 = []; slices2 = []; labels = []; limits = []; coordData = []; coordObjs = []
+    slices1 = []; slices2 = []; limits = []; coordData = []; coordObjs = []
+    labels = []; names=[]; units =[]
     for d,s in zip(variableDims, sliceSpecs):
       equalsSplit = re.match("""
           (                          # A super group of the next two groups
@@ -281,11 +288,16 @@ class NetcdfSlice:
       if d in rootGroup.variables:
         dimensionVariableHandle = rootGroup.variables[d]
         dimensionValues = dimensionVariableHandle[:]
-        labels.append( constructLabel(dimensionVariableHandle, d) )
+        label, name, unit = constructLabel(dimensionVariableHandle, d)
+        labels.append(label)
+        names.append(name)
+        units.append(unit)
       else:
         dimensionVariableHandle = None
         dimensionValues = np.arange( len(dimensionHandle) ) + 1
         labels.append(d+' (index)')
+        names.append(d)
+        units.append('')
       coordObjs.append( dimensionVariableHandle )
       if equals==None: # Handle case where index space was specified
         # Check that only integers were provided
@@ -349,7 +361,9 @@ class NetcdfSlice:
     # Remove singleton dimensions, recording values
     singletons = []; idel = []
     for i, cd in enumerate(coordData):
-      if len(cd)==1: idel.insert(0, i)
+      if len(cd)==1:
+        idel.insert(0, i)
+        singletons.append( (names[i], coordData[i][0], units[i]) )
     for i in idel: del coordData[i]; del coordObjs[i]; del labels[i]; del limits[i]
     if debug: print 'singletons=',singletons
     variableData = np.squeeze(variableData)
@@ -362,7 +376,7 @@ class NetcdfSlice:
     self.coordObjs = coordObjs
     self.coordLimits = limits
     self.data = variableData
-    self.label = constructLabel(variableHandle, variableName)
+    self.label, self.name, self.units = constructLabel(variableHandle, variableName)
     self.apparentRank = len(slices1)
     self.singletons = singletons
     self.naturalShape = variableHandle.shape
@@ -462,14 +476,16 @@ def constructLabel(ncObj, default=''):
   Returns a string combining CF attiributes "long_name" and "units"
   """
   if debug: print 'constructLabel: ncObj=',ncObj
-  label = ''
+  label = ''; name = None
   if 'long_name' in ncObj.ncattrs():
-    label += str(ncObj.getncattr('long_name'))+' '
-  else: label += ncObj._name+' '
+    label += str(ncObj.getncattr('long_name'))
+  else: label += ncObj._name
+  name = label; units = None
   if 'units' in ncObj.ncattrs():
-    label += '('+str(ncObj.getncattr('units'))+')'
+    units = str(ncObj.getncattr('units'))
+    label += ' ('+units+')'
   if len(label)==0: label = default+' (index)'
-  return label
+  return label, name ,units
 
 
 def isAttrEqualTo(ncObj, name, value):
