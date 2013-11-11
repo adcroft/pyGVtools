@@ -95,13 +95,15 @@ def createUI(fileVarSlice, args):
     print 'Known variables in file: '+''.join( (str(v)+', ' for v in rg.variables) )
     raise MyError('Did not find "'+variableName+'" in file "'+fileName+'".')
 
-  # Obtain data along with 1D coordinates, labels and limits
+  # Obtain meta data along with 1D coordinates, labels and limits
   var1 = NetcdfSlice(rg, variableName, sliceSpecs)
 
   if var1.rank>2: # Intercept requests for ranks >2
     print 'Variable name "%s" has resolved rank %i.\nI can only plot 1D and 2D data.\n\nFile summary is:\n'%(variableName, var1.rank)
     summarizeFile(rg); print
     raise MyError('Rank of requested data is too large to plot')
+
+  var1.getData() # Actually read data from file
 
   # Optionally mask out a specific value
   if optCmdLineArgs.ignore:
@@ -355,8 +357,6 @@ class NetcdfSlice:
       else: cMin = coordinateData[0]; cMax = cMin; cRange = 0.
       limits.append((cMin, cMax))
       coordData.append( coordinateData )
-    if slices1==slices2: variableData = variableHandle[slices1]
-    else: variableData = np.append(variableHandle[slices1], variableHandle[slices2], axis=len(slices2)-1)
 
     # Remove singleton dimensions, recording values
     singletons = []; idel = []
@@ -366,21 +366,28 @@ class NetcdfSlice:
         singletons.append( (names[i], coordData[i][0], units[i]) )
     for i in idel: del coordData[i]; del coordObjs[i]; del labels[i]; del limits[i]
     if debug: print 'singletons=',singletons
-    variableData = np.squeeze(variableData)
 
     # Attributes of class
+    self.variableHandle = variableHandle
     self.slices1 = slices1
     self.slices2 = slices2
     self.coordData = coordData
     self.coordLabels = labels
     self.coordObjs = coordObjs
     self.coordLimits = limits
-    self.data = variableData
+    self.data = None
     self.label, self.name, self.units = constructLabel(variableHandle, variableName)
     self.apparentRank = len(slices1)
     self.singletons = singletons
     self.naturalShape = variableHandle.shape
-    self.rank = len(variableData.shape)
+    self.rank = len(coordData)
+  def getData(self):
+    """
+    Popolate .data with data from file
+    """
+    if self.slices1==self.slices2: self.data = np.squeeze( self.variableHandle[self.slices1] )
+    else: self.data = np.squeeze( np.append(
+        self.variableHandle[self.slices1], self.variableHandle[self.slices2], axis=len(self.slices2)-1) )
 
 
 def splitFileVarPos(string):
