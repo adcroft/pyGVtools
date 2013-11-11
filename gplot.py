@@ -99,8 +99,8 @@ def processSimplePlot(fileVarSlice, args):
   var1 = NetcdfSlice(rg, variableName, sliceSpecs)
 
   if var1.rank>2: # Intercept requests for ranks >2
-    print 'Variable name "%s" has rank %i.\nI can only plot 1D and 2D data.\n\nFile summary is:"'%(variableName, var1.rank)
-    summarizeFile(rg)
+    print 'Variable name "%s" has resolved rank %i.\nI can only plot 1D and 2D data.\n\nFile summary is:\n'%(variableName, var1.rank)
+    summarizeFile(rg); print
     raise MyError('Rank of requested data is too large to plot')
 
   # Optionally mask out a specific value
@@ -362,10 +362,10 @@ class NetcdfSlice:
 
 def splitFileVarPos(string):
   """
-  Split a string in form of "file:variable[...]" into three string parts
-  Valid forms are file, file:variable or file:variable[i,j=,=2.,z=,...]
+  Split a string in form of "file,variable[...]" into three string parts
+  Valid forms are "file", "file,variable" or "file,variable,3,j=,=2.,z=3.1:5.4,..."
   """
-  m = re.match(r'([\w\.~/]+):?(.*)',string)
+  m = re.match(r'([\w\.~/]+)[,:]?(.*)',string)
   fName = m.group(1)
   (vName, pSpecs) = splitVarPos(m.group(2))
   if debug: print 'splitFileVarPos: fName=',fName,'vName=',vName,'pSpecs=',pSpecs
@@ -375,17 +375,20 @@ def splitFileVarPos(string):
 def splitVarPos(string):
   """
   Split a string in form of "variable[...]" into two string parts
-  Valid forms are variable or variable[i,j=,=2.,z=,...]
+  Valid forms are "variable" or "variable[3,j=:,=2.,z=3.1:5.4,...,]"
   """
   vName = None; pSpecs = None
   if string:
-    m = re.match('(\w+)(\[([\w,:=\.\\+\\-EeNnDd]*?)\])?(.*)',string)
-    if m:
-      if len(m.groups())>3 and len(m.group(4))>0: raise MyError('Syntax error "'+m.group(4)+'"?')
-      vName = m.group(1)
-      if m.group(3): pSpecs = m.group(3)
-    else: raise MyError('Could not decipher "'+string+'" for variable name.')
-  if pSpecs: pSpecs = re.split(',',pSpecs)
+    cSplit = string.split(',')
+    if cSplit: vName = cSplit[0]
+    if len(cSplit)>1: pSpecs = cSplit[1:]
+    #m = re.match('(\w+)(\[([\w,:=\.\\+\\-EeNnDd]*?)\])?(.*)',string)
+    #if m:
+    #  if len(m.groups())>3 and len(m.group(4))>0: raise MyError('Syntax error "'+m.group(4)+'"?')
+    #  vName = m.group(1)
+    #  if m.group(3): pSpecs = m.group(3)
+    #else: raise MyError('Could not decipher "'+string+'" for variable name.')
+  #if pSpecs: pSpecs = re.split(',',pSpecs)
   if debug: print 'splitVarPos: vName=',vName,'pSpecs=',pSpecs
   return vName, pSpecs
 
