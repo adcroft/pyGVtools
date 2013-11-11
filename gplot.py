@@ -478,11 +478,11 @@ def constructLabel(ncObj, default=''):
   if debug: print 'constructLabel: ncObj=',ncObj
   label = ''; name = None
   if 'long_name' in ncObj.ncattrs():
-    label += str(ncObj.getncattr('long_name'))
+    label += str(ncObj.long_name)
   else: label += ncObj._name
   name = label; units = None
   if 'units' in ncObj.ncattrs():
-    units = str(ncObj.getncattr('units'))
+    units = str(ncObj.units)
     label += ' ('+units+')'
   if len(label)==0: label = default+' (index)'
   return label, name ,units
@@ -534,8 +534,8 @@ def summarizeFile(rg):
       n = len( dims[dim] ); obj = rg.variables[dim]
       if n>5: oString += ' = '+str(obj[0])+'...'+str(obj[n-1])
       else: oString += ' = '+str(obj[:])
-      if 'long_name' in obj.ncattrs(): oString += ' "'+obj.getncattr('long_name')+'"'
-      if 'units' in obj.ncattrs(): oString += ' ('+obj.getncattr('units')+')'
+      if 'long_name' in obj.ncattrs(): oString += ' "'+obj.long_name+'"'
+      if 'units' in obj.ncattrs(): oString += ' ('+obj.units+')'
     print oString
   print; print 'Variables:'
   for var in vars:
@@ -546,8 +546,8 @@ def summarizeFile(rg):
       if len(dString)>0: dString += ', '
       dString += dim+'['+str(len( dims[dim] ))+']'
     oString += dString+' ]'
-    if 'long_name' in obj.ncattrs(): oString += ' "'+obj.getncattr('long_name')+'"'
-    if 'units' in obj.ncattrs(): oString += ' ('+obj.getncattr('units')+')'
+    if 'long_name' in obj.ncattrs(): oString += ' "'+obj.long_name+'"'
+    if 'units' in obj.ncattrs(): oString += ' ('+obj.units+')'
     print oString
 
 
