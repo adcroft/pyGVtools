@@ -1,26 +1,28 @@
 #!/usr/bin/env python
 
-def error(msg, code=9):
+class MyError(Exception):
   """
-  A simple error message generator with optional error code to return to parent shell
+  Class for error handling
   """
-  print 'Error: ' + msg
-  exit(code)
+  def __init__(self, value):
+    self.value = value
+  def __str__(self):
+    return repr(self.value)
 
 
 # Try to import required packages/modules
 import re
 import os
 try: import argparse
-except: error('This version of python is not new enough. python 2.7 or newer is required.')
+except: raise MyError('This version of python is not new enough. python 2.7 or newer is required.')
 try: from netCDF4 import Dataset
-except: error('Unable to import netCDF4 module. Check your PYTHONPATH.\n'
+except: raise MyError('Unable to import netCDF4 module. Check your PYTHONPATH.\n'
           +'Perhaps try:\n   module load python_netcdf4')
 try: import numpy as np
-except: error('Unable to import numpy module. Check your PYTHONPATH.\n'
+except: raise MyError('Unable to import numpy module. Check your PYTHONPATH.\n'
           +'Perhaps try:\n   module load python_numpy')
 try: import matplotlib.pyplot as plt
-except: error('Unable to import matplotlib.pyplot module. Check your PYTHONPATH.\n'
+except: raise MyError('Unable to import matplotlib.pyplot module. Check your PYTHONPATH.\n'
           +'Perhaps try:\n   module load python_matplotlib')
 import warnings
 
@@ -76,8 +78,8 @@ def processSimplePlot(fileVarSlice, args):
   # Open netcdf file
   try: rg=Dataset(fileName, 'r');
   except:
-    if os.path.isfile(fileName): error('Ther was a problem opening "'+fileName+'".')
-    error('Could not find file "'+fileName+'".')
+    if os.path.isfile(fileName): raise MyError('There was a problem opening "'+fileName+'".')
+    raise MyError('Could not find file "'+fileName+'".')
 
   # If no variable is specified, summarize the file contents and exit
   if not variableName:
@@ -91,7 +93,7 @@ def processSimplePlot(fileVarSlice, args):
     if variableName.lower() == v.lower(): variableName=v ; break
   if not variableName in rg.variables:
     print 'Known variables in file: '+''.join( (str(v)+', ' for v in rg.variables) )
-    error('Did not find "'+variableName+'" in file "'+fileName+'".')
+    raise MyError('Did not find "'+variableName+'" in file "'+fileName+'".')
 
   # Obtain data along with 1D coordinates, labels and limits
   var1 = NetcdfSlice(rg, variableName, sliceSpecs)
@@ -111,7 +113,7 @@ def processSimplePlot(fileVarSlice, args):
   elif var1.rank>2: # Handle the 5D dimensional time traveller
     print 'Variable name "%s" has rank %i.\nI can only plot 1D and 2D data.\n\nFile summary is:"'%(variableName, var1.rank)
     summarizeFile(rg)
-    error('Rank of requested data is too large to plot')
+    raise MyError('Rank of requested data is too large to plot')
   elif var1.rank==1: # Line plot
     if isAttrEqualTo(var1.coordObjs[0],'cartesian_axis','z'): # Transpose 1d plot
       plt.plot(var1.data,var1.coordData[0])
@@ -203,7 +205,7 @@ class NetcdfSlice:
     variableDims = variableHandle.dimensions
     if debug: print 'NetcdfSlice: variableDims=',variableDims
     if not (sliceSpecs==None) and len(sliceSpecs)>len(variableDims):
-      error('Too many coordinate slices specified! Variable "'+variableName+
+      raise MyError('Too many coordinate slices specified! Variable "'+variableName+
           '" has %i dimensions but you specified %i.'
           % ( len(variableDims), len(sliceSpecs) ) )
   
@@ -234,9 +236,9 @@ class NetcdfSlice:
       if not thisSlice: thisSlice = ':' # If we ran out of general slices use a default "all" slice
       sliceSpecs.append(thisSlice)
     if debug: print 'NetcdfSlice: sliceSpecs=',sliceSpecs
-    if len(namedSlices): error('The named dimension in "%s" is not a dimension of the variable "%s".'
+    if len(namedSlices): raise MyError('The named dimension in "%s" is not a dimension of the variable "%s".'
                                 % (namedSlices[0], variableName) )
-    if len(generalSlices): error('There is an impossible problem. I should probably be debugged.')
+    if len(generalSlices): raise MyError('There is an impossible problem. I should probably be debugged.')
   
     # Now interpret the slice specification for each dimensions
     slices1 = []; slices2 = []; labels = []; limits = []; coordData = []; coordObjs = []
@@ -255,8 +257,8 @@ class NetcdfSlice:
           """, s, re.VERBOSE)
       if debug: print 'NetcdfSlice: Interpretting "%s", groups='%(s),equalsSplit.groups()
       lhsEquals, lhs, equals, rhs, low, colon, high, excess = equalsSplit.groups()
-      if len(excess)>0: error('Syntax error: could not interpret "'+s+'".')
-      if len(rhs)==0: error('Syntax error: could not find range on RHS of "'+s+'".')
+      if len(excess)>0: raise MyError('Syntax error: could not interpret "'+s+'".')
+      if len(rhs)==0: raise MyError('Syntax error: could not find range on RHS of "'+s+'".')
       if debug:
         print 'NetcdfSlice: Interpretting "%s", name = "%s"' % (s, lhs)
         print 'NetcdfSlice: Interpretting "%s", equals provided "%s"' % (s, equals)
@@ -285,9 +287,9 @@ class NetcdfSlice:
           except ValueError: return False
           return f==float(i)
         if not stringIsInt(low):
-          error('The lower end of the range "%s" must be an integer'%(s))
+          raise MyError('The lower end of the range "%s" must be an integer'%(s))
         if not stringIsInt(high):
-          error('The upper end of the range "%s" must be an integer'%(s))
+          raise MyError('The upper end of the range "%s" must be an integer'%(s))
         if low=='': indexBegin = 0
         else: indexBegin = int(low) - 1 # Convert from Fortran indexing
         if colon==None: indexEnd = indexBegin
@@ -306,7 +308,7 @@ class NetcdfSlice:
         if dimensionValues[1]<dimensionValues[0]: indexBegin, indexEnd = indexEnd, indexBegin
         elif isAttrEqualTo( dimensionVariableHandle, 'cartesian_axis', 'x'):
           print 'Note: Assuming modulo behavior for specification "%s" on dimension "%s"' %(s, d)
-        else: error('Index ranges are inverted for %s'%(s))
+        else: raise MyError('Index ranges are inverted for %s'%(s))
       # Extrapolate for coordinate bounds
       if len(dimensionValues)>1:
         cMin = 1.5*dimensionValues[0] - 0.5*dimensionValues[1]
@@ -378,10 +380,10 @@ def splitVarPos(string):
   if string:
     m = re.match('(\w+)(\[([\w,:=\.\\+\\-EeNnDd]*?)\])?(.*)',string)
     if m:
-      if len(m.groups())>3 and len(m.group(4))>0: error('Syntax error "'+m.group(4)+'"?')
+      if len(m.groups())>3 and len(m.group(4))>0: raise MyError('Syntax error "'+m.group(4)+'"?')
       vName = m.group(1)
       if m.group(3): pSpecs = m.group(3)
-    else: error('Could not decipher "'+string+'" for variable name.')
+    else: raise MyError('Could not decipher "'+string+'" for variable name.')
   if pSpecs: pSpecs = re.split(',',pSpecs)
   if debug: print 'splitVarPos: vName=',vName,'pSpecs=',pSpecs
   return vName, pSpecs
@@ -391,12 +393,12 @@ def splitVarPos(string):
 def iRange(ncDim, strSpec, ncVar):
   equalParts = strSpec.split('='); dLen = len(ncDim)
   if debug: print '    = split',equalParts
-  if len(equalParts)>2: error('Syntax error in "'+strSpec+'".')
-  elif len(equalParts)==0: error('Impossible!')
+  if len(equalParts)>2: raise MyError('Syntax error in "'+strSpec+'".')
+  elif len(equalParts)==0: raise MyError('Impossible!')
   elif len(equalParts)==1: # Format : is: :ie is:ie
     colonParts = equalParts[0].split(':')
     if debug: print '    : split',colonParts
-    if len(colonParts)>2: error('Too many :\'s in "'+strSpec+'".')
+    if len(colonParts)>2: raise MyError('Too many :\'s in "'+strSpec+'".')
     # Interpret left of : to set indS
     if colonParts[0]=='': indS = 0
     else: indS = int(colonParts[0])-1 # Convert fortran/matlab index to python
@@ -404,17 +406,17 @@ def iRange(ncDim, strSpec, ncVar):
     if len(colonParts)==1: indE = indS+1
     elif colonParts[1]=='': indE = dLen
     else: indE = int(colonParts[1]) # No conversion necessary because of python ranges
-    if indS>=indE: error('In '+strSpec+' the index range is reversed.\n')
-    if indS<0: error('In '+strSpec+' the start of the index range must >=1.\n')
-    if indE>dLen: error('In '+strSpec+' the end of the index range is out of bounds.\n'
+    if indS>=indE: raise MyError('In '+strSpec+' the index range is reversed.')
+    if indS<0: raise MyError('In '+strSpec+' the start of the index range must >=1.')
+    if indE>dLen: raise MyError('In '+strSpec+' the end of the index range is out of bounds.\n'
         +'The corresponding dimension, '+str(ncDim._name)+', has length '+str(dLen)+'.')
   elif len(equalParts)==2: # Format =: =xs: =:xe =xs:xe
     coordVals = ncVar[:]; coordSign = 1
     if coordVals[-1] < coordVals[0]: coordSign = -1 # In lieu of a sign() function
     colonParts = equalParts[1].split(':')
     if debug: print '    : split',colonParts
-    if len(colonParts)==1 and colonParts[0]=='': error('Nothing on the r.h.s. of =\'s!')
-    if len(colonParts)>2: error('Too many :\'s in "'+strSpec+'".')
+    if len(colonParts)==1 and colonParts[0]=='': raise MyError('Nothing on the r.h.s. of =\'s!')
+    if len(colonParts)>2: raise MyError('Too many :\'s in "'+strSpec+'".')
     # Interpret left of : to set coordS
     if colonParts[0]=='': coordS = coordVals[0]
     else: coordS = float(colonParts[0])
@@ -423,7 +425,7 @@ def iRange(ncDim, strSpec, ncVar):
     elif colonParts[1]=='': coordE = coordVals[-1]
     else: coordE = float(colonParts[1])
     if debug: print '    coord range=',coordS,coordE
-    if coordSign*(coordE-coordS) < 0: error('The coordinate range "'+strSpec+'" is inverted!')
+    if coordSign*(coordE-coordS) < 0: raise MyError('The coordinate range "'+strSpec+'" is inverted!')
     indS = coord2index(coordVals, coordS, roundUp=True)
     if coordE==coordS: indE = indS + 1
     else: indE = coord2index(coordVals, coordE)+1 # Python range requires +1
