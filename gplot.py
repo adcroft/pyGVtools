@@ -104,8 +104,6 @@ def createUI(fileVarSlice, args):
     raise MyError( 'Variable name "%s" has resolved rank %i. Only 1D and 2D data can be plotted until you buy a holgraphic display.'%(variableName, var1.rank))
   var1.getData() # Actually read data from file
 
-  var1.getData() # Actually read data from file
-
   # Optionally mask out a specific value
   if optCmdLineArgs.ignore:
     var1.data = np.ma.masked_array(var1.data, mask=[var1.data==optCmdLineArgs.ignore])
@@ -138,18 +136,23 @@ def createUI(fileVarSlice, args):
   elif var1.rank==2: # Pseudo color plot
     # Add an extra element to coordinate to force pcolormesh to draw all cells
     coordData = []
-    coordData.append( np.append(var1.dims[0].values,2*var1.dims[0].values[-1]-var1.dims[0].values[-2]) )
-    coordData.append( np.append(var1.dims[1].values,2*var1.dims[1].values[-1]-var1.dims[1].values[-2]) )
+    #coordData.append( np.append(var1.dims[0].values,2*var1.dims[0].values[-1]-var1.dims[0].values[-2]) )
+    #coordData.append( np.append(var1.dims[1].values,2*var1.dims[1].values[-1]-var1.dims[1].values[-2]) )
+    coordData.append( extrapCoord( var1.dims[0].values ) )
+    coordData.append( extrapCoord( var1.dims[1].values ) )
     if var1.dims[1].isZaxis: # Happens for S(t,z)
       xCoord = coordData[0]; yCoord = coordData[1]; zData = np.transpose(var1.data)
       xLabel = var1.dims[0].label; xLims = var1.dims[0].limits
       yLabel = var1.dims[1].label; yLims = var1.dims[1].limits
       yDim = var1.dims[1]
     else:
-      print 'supergrid=',args.supergrid
-      xCoord = coordData[1]; yCoord = coordData[0]; zData = var1.data
       xLabel = var1.dims[1].label; xLims = var1.dims[1].limits
       yLabel = var1.dims[0].label; yLims = var1.dims[0].limits
+      if args.supergrid==None:
+        xCoord = coordData[1]; yCoord = coordData[0]
+      else:
+        raise MyError('oops')
+      zData = var1.data
       yDim = var1.dims[0]
     plt.pcolormesh(xCoord,yCoord,zData)
     if yDim.isZaxis: # Z on y axis ?
@@ -184,9 +187,9 @@ def createUI(fileVarSlice, args):
         else: return 'x=%.3f y=%.3f'%(x,y)
     elif var1.rank==2:
       def statusMesg(x,y):
-        # -1 needed because of extension for pcolormesh
-        i = min(range(len(xCoord)-1), key=lambda l: abs(xCoord[l]-x))
-        j = min(range(len(yCoord)-1), key=lambda l: abs(yCoord[l]-y))
+        # -2 needed because of coords are for vertices and need to be averaged to centers
+        i = min(range(len(xCoord)-2), key=lambda l: abs((xCoord[l]+xCoord[l+1])/2.-x))
+        j = min(range(len(yCoord)-2), key=lambda l: abs((yCoord[l]+yCoord[l+1])/2.-y))
         if not i==None:
           val = zData[j,i]
           if val is np.ma.masked: return 'x,y=%.3f,%.3f  %s(%i,%i)=NaN'%(x,y,variableName,i+1,j+1)
@@ -296,6 +299,7 @@ class NetcdfDim:
       self.slice1 = slice(indexBegin, -1)
       self.slice2 = slice(0, indexEnd+1)
       self.len = len(dimensionHandle) - indexBegin + 1 + indexEnd
+    self.lenInFile = len(dimensionHandle)
     self.limits = (None, None)
     self.dimensionVariableHandle = dimensionVariableHandle
     self.values = None
@@ -315,6 +319,7 @@ class NetcdfDim:
       cMax = 1.5*self.values[-1] - 0.5*self.values[-2]
     else: cMin = self.values[0]; cMax = cMin
     self.limits = (cMin, cMax)
+    if debug: print self
   def __repr__(self):
     return 'len=%i, name="%s", units=%s, label="%s"'%(self.len, self.name, self.units, self.label)+' min/max='+repr(self.limits)+' slice1='+repr(self.slice1)+' slice2='+repr(self.slice2) #+' values='+repr(self.values)
 
@@ -534,6 +539,17 @@ def newLims(cur_xlim, cur_ylim, cursor, xlim, ylim, scale_factor):
   if xL==cur_xlim[0] and xR==cur_xlim[1] and \
      yL==cur_ylim[0] and yR==cur_ylim[1]: return (None, None), (None, None)
   return (xL, xR), (yL, yR)
+
+
+def extrapCoord(xCell):
+  """
+  Returns the (extrapolated/interpolated) positions of vertices, derived from cell center positions
+  """
+  newCoord = 0.5*( xCell[0:-1] + xCell[1:] )
+  newCoord = np.insert(newCoord, 0, 1.5*xCell[0] - 0.5*xCell[1])
+  newCoord = np.append(newCoord, [1.5*xCell[-1] - 0.5*xCell[-2]])
+  return newCoord
+
 
 
 # Invoke parseCommandLine(), the top-level prodedure
