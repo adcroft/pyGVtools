@@ -50,6 +50,8 @@ def parseCommandLine():
                   help='Specify the lower/upper color range.')
   parser.add_argument('-i','--ignore', type=float, nargs=1,
                   help='Mask out the specified value.')
+  parser.add_argument('-sg','--supergrid', type=str, default=None,
+                  help='The supergrid to use for horizontal coordinates.')
   parser.add_argument('-o','--output', type=str, default='',
                   help='Name of image file to create.')
   parser.add_argument('--stats', action='store_true',
@@ -115,53 +117,56 @@ def createUI(fileVarSlice, args):
     #dMin = np.min(var1.data[var1.data!=0]); dMax = np.max(var1.data[var1.data!=0])
     #print 'Mininum=',dMin,'Maximum=',dMax,'(ignoring zeros)'
   # Now plot
-  if var1.rank==0: print var1.data
+  if var1.rank==0:
+    for d in var1.allDims:
+      print '%s = %g %s'%(d.name,d.values[0],d.units)
+    print '%s = %g %s'%(var1.name,var1.data,var1.units)
+    exit(0)
   elif var1.rank==1: # Line plot
-    if isAttrEqualTo(var1.coordObjs[0],'cartesian_axis','z'): # Transpose 1d plot
-      xCoord = var1.data ; yData = var1.coordData[0]
-      plt.plot(var1.data, var1.coordData[0])
+    if var1.dims[0].isZaxis: # Transpose 1d plot
+      xCoord = var1.data ; yData = var1.dims[0].values
+      plt.plot(xCoord, yData)
       plt.xlabel(var1.label)
-      plt.ylabel(var1.coordLabels[0]); plt.ylim(var1.coordLimits[0][0], var1.coordLimits[0][1])
-      if var1.coordData[0][0]>var1.coordData[0][-1]: plt.gca().invert_yaxis()
-      if isAttrEqualTo(var1.coordObjs[0],'positive','down'): plt.gca().invert_yaxis()
+      plt.ylabel(var1.dims[0].label);
+      if var1.dims[0].values[0]>var1.dims[0].values[-1]: plt.gca().invert_yaxis()
+      if var1.dims[0].positiveDown: plt.gca().invert_yaxis()
     else: # Normal 1d plot
-      xCoord = var1.coordData[0]; yData = var1.data
-      plt.plot(var1.coordData[0], var1.data)
-      plt.xlabel(var1.coordLabels[0]); plt.xlim(var1.coordLimits[0][0], var1.coordLimits[0][-1])
+      xCoord = var1.dims[0].values; yData = var1.data
+      plt.plot(xCoord, yData)
+      plt.xlabel(var1.dims[0].label); plt.xlim(var1.dims[0].limits[0], var1.dims[0].limits[-1])
       plt.ylabel(var1.label)
   elif var1.rank==2: # Pseudo color plot
-    if debug: print 'createUI: coordData[1]=',var1.coordData[1]
-    if debug: print 'createUI: coordData[0]=',var1.coordData[0]
     # Add an extra element to coordinate to force pcolormesh to draw all cells
     coordData = []
-    coordData.append( np.append(var1.coordData[0],2*var1.coordData[0][-1]-var1.coordData[0][-2]) )
-    coordData.append( np.append(var1.coordData[1],2*var1.coordData[1][-1]-var1.coordData[1][-2]) )
-    if isAttrEqualTo(var1.coordObjs[1],'cartesian_axis','z'): # Happens for S(t,z)
+    coordData.append( np.append(var1.dims[0].values,2*var1.dims[0].values[-1]-var1.dims[0].values[-2]) )
+    coordData.append( np.append(var1.dims[1].values,2*var1.dims[1].values[-1]-var1.dims[1].values[-2]) )
+    if var1.dims[1].isZaxis: # Happens for S(t,z)
       xCoord = coordData[0]; yCoord = coordData[1]; zData = np.transpose(var1.data)
-      xLabel = var1.coordLabels[0]; xLims = var1.coordLimits[0]
-      yLabel = var1.coordLabels[1]; yLims = var1.coordLimits[1]
-      yObj = var1.coordObjs[1]
+      xLabel = var1.dims[0].label; xLims = var1.dims[0].limits
+      yLabel = var1.dims[1].label; yLims = var1.dims[1].limits
+      yDim = var1.dims[1]
     else:
+      print 'supergrid=',args.supergrid
       xCoord = coordData[1]; yCoord = coordData[0]; zData = var1.data
-      xLabel = var1.coordLabels[1]; xLims = var1.coordLimits[1]
-      yLabel = var1.coordLabels[0]; yLims = var1.coordLimits[0]
-      yObj = var1.coordObjs[0]
+      xLabel = var1.dims[1].label; xLims = var1.dims[1].limits
+      yLabel = var1.dims[0].label; yLims = var1.dims[0].limits
+      yDim = var1.dims[0]
     plt.pcolormesh(xCoord,yCoord,zData)
-    if isAttrEqualTo(yObj,'cartesian_axis','z'): # Z on y axis ?
+    if yDim.isZaxis: # Z on y axis ?
       if yCoord[0]>yCoord[-1]: plt.gca().invert_yaxis(); yLims = reversed(yLims)
-      if isAttrEqualTo(yObj,'positive','down'): plt.gca().invert_yaxis(); yLims = reversed(yLims)
+      if yDim.positiveDown: plt.gca().invert_yaxis(); yLims = reversed(yLims)
     plt.title(var1.label)
     plt.xlim(xLims); plt.ylim(yLims)
     makeGuessAboutCmap()
     plt.tight_layout()
     plt.colorbar()
   axis=plt.gca()
-  if var1.singletons:
+  if var1.singleDims:
     text = ''
-    for name, val, units in var1.singletons:
+    for d in var1.singleDims:
       if len(text): text = text+'   '
-      text = text + name + ' = ' + str(val)
-      if units: text = text + ' ('+units+')'
+      text = text + d.name + ' = ' + str(d.values[0])
+      if d.units: text = text + ' (' + d.units + ')'
     axis.annotate(text, xy=(0.005,.995), xycoords='figure fraction', verticalalignment='top', fontsize=8)
   if optCmdLineArgs.output:
     plt.savefig(optCmdLineArgs.output,pad_inches=0.)
@@ -206,6 +211,112 @@ def createUI(fileVarSlice, args):
     plt.gca().format_coord = statusMesg
     plt.gcf().canvas.mpl_connect('key_press_event', keyPress)
     plt.show()
+
+
+class NetcdfDim:
+  """
+  Class for describing a dimension in a netcdf file
+  """
+  def __init__(self, rootGroup, dimensionName, sliceSpec):
+    """
+    Initialize a dimension by interpretting a sliceSpec
+    """
+    equalsSplit = re.match("""
+          (                          # A super group of the next two groups
+          (?P<lhs>[A-Za-z0-9_]*?)    # An optional dimension name
+          (?P<equals>=)              # Equals
+          )?                         # Both the dimension name and equals are optional
+          (?P<rhs>                   # Super group of everything on the RHS
+          (?P<low>[0-9Ee\.\\+\\-]*)  # Valid number
+          (?P<colon>:)?              # Colon separates low:high parts of range
+          (?P<high>[0-9Ee\.\\+\\-]*) # Valid number
+          )                          # Any of the three previous groups is optional but at least one is needed
+          (?P<excess>.*)             # Nothing else is allowed but this will catch anything else
+          """, sliceSpec, re.VERBOSE)
+    if debug: print 'NetcdfSlice: Interpretting "%s", groups='%(sliceSpec),equalsSplit.groups()
+    lhsEquals, lhs, equals, rhs, low, colon, high, excess = equalsSplit.groups()
+    if len(excess)>0: raise MyError('Syntax error: could not interpret "'+sliceSpec+'".')
+    if len(rhs)==0: raise MyError('Syntax error: could not find range on RHS of "'+sliceSpec+'".')
+    if debug:
+      print 'NetcdfDim: Interpretting "%s", name = "%s"' % (sliceSpec, lhs)
+      print 'NetcdfDim: Interpretting "%s", equals provided "%s"' % (sliceSpec, equals)
+      print 'NetcdfDim: Interpretting "%s", ranges provided "%s"' % (sliceSpec, colon)
+      print 'NetcdfDim: Interpretting "%s", low range "%s"' % (sliceSpec, low)
+      print 'NetcdfDim: Interpretting "%s", high range "%s"' % (sliceSpec, high)
+    dimensionHandle = rootGroup.dimensions[dimensionName]
+    self.isZaxis = False
+    self.positiveDown = None
+    if dimensionName in rootGroup.variables:
+      dimensionVariableHandle = rootGroup.variables[dimensionName]
+      dimensionValues = None
+      self.label, self.name, self.units = constructLabel(dimensionVariableHandle, dimensionName)
+      if isAttrEqualTo(dimensionVariableHandle,'cartesian_axis','z'):
+        self.isZaxis = True
+        if isAttrEqualTo(dimensionVariableHandle,'positive','down'): self.positiveDown = True
+        else: self.positiveDown = False
+    else:
+      dimensionVariableHandle = None
+      dimensionValues = np.arange( len(dimensionHandle) ) + 1
+      self.label = dimensionName
+      self.name = dimensionName
+      self.units = ''
+    if equals==None: # Handle case where index space was specified
+      # Check that only integers were provided
+      def stringIsInt(s):
+        if len(s)==0: return True
+        try: f=float(s)
+        except ValueError: return False
+        try: i=int(s)
+        except ValueError: return False
+        return f==float(i)
+      if not stringIsInt(low):
+        raise MyError('The lower end of the range "%s" must be an integer'%(sliceSpec))
+      if not stringIsInt(high):
+        raise MyError('The upper end of the range "%s" must be an integer'%(sliceSpec))
+      if low=='': indexBegin = 0
+      else: indexBegin = int(low) - 1 # Convert from Fortran indexing
+      if colon==None: indexEnd = indexBegin
+      else:
+        if high=='': indexEnd = len(dimensionHandle) - 1
+        else: indexEnd = int(high) - 1 # Convert from Fortran indexing
+    else: # An equals was specified so the RHS low:high is in coordinate space
+      if dimensionVariableHandle: dimensionValues = dimensionVariableHandle[:] # Read global coordinate data
+      if low=='': indexBegin = 0
+      else: indexBegin = min(range(len(dimensionValues)), key=lambda i: abs(dimensionValues[i]-float(low)))
+      if colon==None: indexEnd = indexBegin
+      else:
+        if high=='': indexEnd = len(dimensionHandle) - 1
+        else: indexEnd = min(range(len(dimensionValues)), key=lambda i: abs(dimensionValues[i]-float(high)))
+    # Convert index bounds to index lists
+    if indexEnd>=indexBegin:
+      self.slice1 = slice(indexBegin, indexEnd+1)
+      self.slice2 = None
+      self.len = indexEnd - indexBegin + 1
+    else:
+      self.slice1 = slice(indexBegin, -1)
+      self.slice2 = slice(0, indexEnd+1)
+      self.len = len(dimensionHandle) - indexBegin + 1 + indexEnd
+    self.limits = (None, None)
+    self.dimensionVariableHandle = dimensionVariableHandle
+    self.values = None
+    #if not dimensionValues==None: self.values = dimensionValues[1] # Store, since we read it
+  def getData(self):
+    """
+    Read dimension variable data if it has not been read
+    """
+    if self.dimensionVariableHandle: # If the handle is None then the values were created already
+      if self.slice2:
+        cMin = 1.5*self.dimensionVariableHandle[0] - 0.5*self.dimensionVariableHandle[1]
+        cMax = 1.5*self.dimensionVariableHandle[-1] - 0.5*self.dimensionVariableHandle[-2]
+        self.values = np.append(self.dimensionVariableHandle[self.slice1], self.dimensionVariableHandle[self.slice2]+(cMax-cMin))
+      else: self.values = self.dimensionVariableHandle[self.slice1]
+    if self.len>1:
+      cMin = 1.5*self.values[0] - 0.5*self.values[1]
+      cMax = 1.5*self.values[-1] - 0.5*self.values[-2]
+    else: cMin = self.values[0]; cMax = cMin
+    self.limits = (cMin, cMax)
+  def __repr__(self):
+    return 'len=%i, name="%s", units=%s, label="%s"'%(self.len, self.name, self.units, self.label)+' min/max='+repr(self.limits)+' slice1='+repr(self.slice1)+' slice2='+repr(self.slice2) #+' values='+repr(self.values)
 
 
 class NetcdfSlice:
@@ -258,135 +369,38 @@ class NetcdfSlice:
     if len(generalSlices): raise MyError('There is an impossible problem. I should probably be debugged.')
   
     # Now interpret the slice specification for each dimensions
-    slices1 = []; slices2 = []; limits = []; coordData = []; coordObjs = []
-    labels = []; names=[]; units =[]
+    dims=[]
     for d,s in zip(variableDims, sliceSpecs):
-      equalsSplit = re.match("""
-          (                          # A super group of the next two groups
-          (?P<lhs>[A-Za-z0-9_]*?)    # An optional dimension name
-          (?P<equals>=)              # Equals
-          )?                         # Both the dimension name and equals are optional
-          (?P<rhs>                   # Super group of everything on the RHS
-          (?P<low>[0-9Ee\.\\+\\-]*)  # Valid number
-          (?P<colon>:)?              # Colon separates low:high parts of range
-          (?P<high>[0-9Ee\.\\+\\-]*) # Valid number
-          )                          # Any of the three previous groups is optional but at least one is needed
-          (?P<excess>.*)             # Nothing else is allowed but this will catch anything else
-          """, s, re.VERBOSE)
-      if debug: print 'NetcdfSlice: Interpretting "%s", groups='%(s),equalsSplit.groups()
-      lhsEquals, lhs, equals, rhs, low, colon, high, excess = equalsSplit.groups()
-      if len(excess)>0: raise MyError('Syntax error: could not interpret "'+s+'".')
-      if len(rhs)==0: raise MyError('Syntax error: could not find range on RHS of "'+s+'".')
-      if debug:
-        print 'NetcdfSlice: Interpretting "%s", name = "%s"' % (s, lhs)
-        print 'NetcdfSlice: Interpretting "%s", equals provided "%s"' % (s, equals)
-        print 'NetcdfSlice: Interpretting "%s", ranges provided "%s"' % (s, colon)
-        print 'NetcdfSlice: Interpretting "%s", low range "%s"' % (s, low)
-        print 'NetcdfSlice: Interpretting "%s", high range "%s"' % (s, high)
-  
-      # Read the entire coordinate for this dimension
-      dimensionHandle = rootGroup.dimensions[d]
-      if d in rootGroup.variables:
-        dimensionVariableHandle = rootGroup.variables[d]
-        dimensionValues = dimensionVariableHandle[:]
-        label, name, unit = constructLabel(dimensionVariableHandle, d)
-        labels.append(label)
-        names.append(name)
-        units.append(unit)
-      else:
-        dimensionVariableHandle = None
-        dimensionValues = np.arange( len(dimensionHandle) ) + 1
-        labels.append(d+' (index)')
-        names.append(d)
-        units.append('')
-      coordObjs.append( dimensionVariableHandle )
-      if equals==None: # Handle case where index space was specified
-        # Check that only integers were provided
-        def stringIsInt(s):
-          if len(s)==0: return True
-          try: f=float(s)
-          except ValueError: return False
-          try: i=int(s)
-          except ValueError: return False
-          return f==float(i)
-        if not stringIsInt(low):
-          raise MyError('The lower end of the range "%s" must be an integer'%(s))
-        if not stringIsInt(high):
-          raise MyError('The upper end of the range "%s" must be an integer'%(s))
-        if low=='': indexBegin = 0
-        else: indexBegin = int(low) - 1 # Convert from Fortran indexing
-        if colon==None: indexEnd = indexBegin
-        else:
-          if high=='': indexEnd = len(dimensionHandle) - 1
-          else: indexEnd = int(high) - 1 # Convert from Fortran indexing
-      else: # An equals was specified so the RHS low:high is in coordinate space
-        if low=='': indexBegin = 0
-        else: indexBegin = min(range(len(dimensionValues)), key=lambda i: abs(dimensionValues[i]-float(low)))
-        if colon==None: indexEnd = indexBegin
-        else:
-          if high=='': indexEnd = len(dimensionHandle) - 1
-          else: indexEnd = min(range(len(dimensionValues)), key=lambda i: abs(dimensionValues[i]-float(high)))
-      if debug: print 'NetcdfSlice: Interpretting %s, begin:end = %i,%i' % (s,indexBegin,indexEnd)
-      if indexEnd<indexBegin:
-        if dimensionValues[1]<dimensionValues[0]: indexBegin, indexEnd = indexEnd, indexBegin
-        elif isAttrEqualTo( dimensionVariableHandle, 'cartesian_axis', 'x'):
-          print 'Note: Assuming modulo behavior for specification "%s" on dimension "%s"' %(s, d)
-        else: raise MyError('Index ranges are inverted for %s'%(s))
-      # Extrapolate for coordinate bounds
-      if len(dimensionValues)>1:
-        cMin = 1.5*dimensionValues[0] - 0.5*dimensionValues[1]
-        cMax = 1.5*dimensionValues[-1] - 0.5*dimensionValues[-2]
-        cRange = cMax - cMin
-      else: cMin = dimensionValues[0]; cMax = cMin; cRange = 0.
-      # Assign coordinateData (currently assume variable corresponding to dimension is 1D)
-      if indexEnd>=indexBegin:
-        indices1=slice(indexBegin, indexEnd+1); indices2 = None
-        slices1.append( indices1 ); slices2.append( indices1 )
-        coordinateData = dimensionValues[indices1]
-      else:
-        indices1 = slice(indexBegin, -1); indices2 = slice(0, indexEnd+1)
-        slices1.append( indices1 ); slices2.append( indices2 )
-        coordinateData = np.append(dimensionValues[indices1], dimensionValues[indices2]+cRange)
-      if debug: print d,'=',coordinateData
-      # Now record the actual bounds of coordinateData
-      if len(coordinateData)>1:
-        cMin = 1.5*coordinateData[0] - 0.5*coordinateData[1]
-        cMax = 1.5*coordinateData[-1] - 0.5*coordinateData[-2]
-        cRange = cMax - cMin
-      else: cMin = coordinateData[0]; cMax = cMin; cRange = 0.
-      limits.append((cMin, cMax))
-      coordData.append( coordinateData )
+      dims.append( NetcdfDim(rootGroup, d, s) )
 
-    # Remove singleton dimensions, recording values
-    singletons = []; idel = []
-    for i, cd in enumerate(coordData):
-      if len(cd)==1:
-        idel.insert(0, i)
-        singletons.append( (names[i], coordData[i][0], units[i]) )
-    for i in idel: del coordData[i]; del coordObjs[i]; del labels[i]; del limits[i]
-    if debug: print 'singletons=',singletons
+    # Group singleton dimensions and active dimensions
+    activeDims = []; singleDims = []
+    for d in dims:
+      if d.len==1: singleDims.append(d)
+      else: activeDims.append(d)
 
     # Attributes of class
     self.variableHandle = variableHandle
-    self.slices1 = slices1
-    self.slices2 = slices2
-    self.coordData = coordData
-    self.coordLabels = labels
-    self.coordObjs = coordObjs
-    self.coordLimits = limits
+    self.allDims = dims
+    self.dims = activeDims
+    self.singleDims = singleDims
     self.data = None
     self.label, self.name, self.units = constructLabel(variableHandle, variableName)
-    self.apparentRank = len(slices1)
-    self.singletons = singletons
-    self.naturalShape = variableHandle.shape
-    self.rank = len(coordData)
+    self.rank = len(self.dims)
   def getData(self):
     """
-    Popolate .data with data from file
+    Popolate NetcdfSlice.data with data from file
     """
-    if self.slices1==self.slices2: self.data = np.squeeze( self.variableHandle[self.slices1] )
-    else: self.data = np.squeeze( np.append(
-        self.variableHandle[self.slices1], self.variableHandle[self.slices2], axis=len(self.slices2)-1) )
+    slices1 = []; slices2 = []
+    for d in self.allDims:
+      d.getData()
+      if d.slice2: slices1.append( d.slice1 ); slices2.append( d.slice1 )
+      else: slices1.append( d.slice1 ); slices2.append( d.slice2 )
+    if slices2[0] == None:
+      self.data = np.squeeze( self.variableHandle[slices1] )
+    else:
+      self.data = np.squeeze( np.append(
+        self.variableHandle[slices1], self.variableHandle[slices2], axis=len(slices2)-1) )
 
 
 def splitFileVarPos(string):
@@ -420,61 +434,6 @@ def splitVarPos(string):
   #if pSpecs: pSpecs = re.split(',',pSpecs)
   if debug: print 'splitVarPos: vName=',vName,'pSpecs=',pSpecs
   return vName, pSpecs
-
-
-# Interpret strSpec and return list of indices
-def iRange(ncDim, strSpec, ncVar):
-  equalParts = strSpec.split('='); dLen = len(ncDim)
-  if debug: print '    = split',equalParts
-  if len(equalParts)>2: raise MyError('Syntax error in "'+strSpec+'".')
-  elif len(equalParts)==0: raise MyError('Impossible!')
-  elif len(equalParts)==1: # Format : is: :ie is:ie
-    colonParts = equalParts[0].split(':')
-    if debug: print '    : split',colonParts
-    if len(colonParts)>2: raise MyError('Too many :\'s in "'+strSpec+'".')
-    # Interpret left of : to set indS
-    if colonParts[0]=='': indS = 0
-    else: indS = int(colonParts[0])-1 # Convert fortran/matlab index to python
-    # Interpret right of : to set indE
-    if len(colonParts)==1: indE = indS+1
-    elif colonParts[1]=='': indE = dLen
-    else: indE = int(colonParts[1]) # No conversion necessary because of python ranges
-    if indS>=indE: raise MyError('In '+strSpec+' the index range is reversed.')
-    if indS<0: raise MyError('In '+strSpec+' the start of the index range must >=1.')
-    if indE>dLen: raise MyError('In '+strSpec+' the end of the index range is out of bounds.\n'
-        +'The corresponding dimension, '+str(ncDim._name)+', has length '+str(dLen)+'.')
-  elif len(equalParts)==2: # Format =: =xs: =:xe =xs:xe
-    coordVals = ncVar[:]; coordSign = 1
-    if coordVals[-1] < coordVals[0]: coordSign = -1 # In lieu of a sign() function
-    colonParts = equalParts[1].split(':')
-    if debug: print '    : split',colonParts
-    if len(colonParts)==1 and colonParts[0]=='': raise MyError('Nothing on the r.h.s. of =\'s!')
-    if len(colonParts)>2: raise MyError('Too many :\'s in "'+strSpec+'".')
-    # Interpret left of : to set coordS
-    if colonParts[0]=='': coordS = coordVals[0]
-    else: coordS = float(colonParts[0])
-    # Interpret right of : to set coordE
-    if len(colonParts)==1: coordE = coordS
-    elif colonParts[1]=='': coordE = coordVals[-1]
-    else: coordE = float(colonParts[1])
-    if debug: print '    coord range=',coordS,coordE
-    if coordSign*(coordE-coordS) < 0: raise MyError('The coordinate range "'+strSpec+'" is inverted!')
-    indS = coord2index(coordVals, coordS, roundUp=True)
-    if coordE==coordS: indE = indS + 1
-    else: indE = coord2index(coordVals, coordE)+1 # Python range requires +1
-  if debug: print '    is,ie=',indS,indE
-  if indE-indS==1: return [indS]
-  else: return range(indS,indE)
-
-
-# Returns index of element of coordList with nearest value to coordVal
-def coord2index(coordList, coordVal, roundUp=False):
-  ind = min(range(len(coordList)), key=lambda i:abs(coordList[i]-coordVal))
-  if roundUp and (ind+1<len(coordList)):
-    # Correct for rounding 0.5 down to 0.
-    if abs(coordList[ind+1]-coordVal)<=abs(coordList[ind]-coordVal): ind=ind+1
-  if debug: print '      coord(',ind,')=',coordList[ind],' matches coord=',coordVal
-  return ind
 
 
 def constructLabel(ncObj, default=''):
