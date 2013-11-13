@@ -290,12 +290,25 @@ class NetcdfDim:
         else: indexEnd = int(high) - 1 # Convert from Fortran indexing
     else: # An equals was specified so the RHS low:high is in coordinate space
       if dimensionVariableHandle: dimensionValues = dimensionVariableHandle[:] # Read global coordinate data
-      if low=='': indexBegin = 0
-      else: indexBegin = min(range(len(dimensionValues)), key=lambda i: abs(dimensionValues[i]-float(low)))
+      cMin = 1.5*dimensionValues[0] - 0.5*dimensionValues[1]
+      cMax = 1.5*dimensionValues[-1] - 0.5*dimensionValues[-2]
+      isLongitude = int(0.5+cMax-cMin)==360
+      if low=='': indexBegin = 0; fLow = cMin
+      else:
+        fLow = float(low)
+        indexBegin = min(range(len(dimensionValues)), key=lambda i: abs(dimensionValues[i]-fLow))
+        if indexBegin==0 and isLongitude and float(low)<cMin:
+          indexBegin = min(range(len(dimensionValues)), key=lambda i: abs(dimensionValues[i]-fLow-360.))
       if colon==None: indexEnd = indexBegin
       else:
         if high=='': indexEnd = len(dimensionHandle) - 1
-        else: indexEnd = min(range(len(dimensionValues)), key=lambda i: abs(dimensionValues[i]-float(high)))
+        else:
+          indexEnd = min(range(len(dimensionValues)), key=lambda i: abs(dimensionValues[i]-float(high)))
+          if indexEnd==len(dimensionValues)-1 and isLongitude and float(high)>cMax:
+            indexEnd = min(range(len(dimensionValues)), key=lambda i: abs(dimensionValues[i]-float(high)+360.))
+          if indexEnd==indexBegin and abs(float(high)-fLow)>0:
+            if indexEnd>0: indexEnd = indexEnd - 1
+            else: indexBegin = indexBegin + 1
     # Convert index bounds to index lists
     if indexEnd>=indexBegin:
       self.slice1 = slice(indexBegin, indexEnd+1)
@@ -309,7 +322,6 @@ class NetcdfDim:
     self.limits = (None, None)
     self.dimensionVariableHandle = dimensionVariableHandle
     self.values = None
-    #if not dimensionValues==None: self.values = dimensionValues[1] # Store, since we read it
   def getData(self):
     """
     Read dimension variable data if it has not been read
