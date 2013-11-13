@@ -188,9 +188,14 @@ def createUI(fileVarSlice, args):
         else: return 'x=%.3f y=%.3f'%(x,y)
     elif var1.rank==2:
       def statusMesg(x,y):
-        # -2 needed because of coords are for vertices and need to be averaged to centers
-        i = min(range(len(xCoord)-2), key=lambda l: abs((xCoord[l]+xCoord[l+1])/2.-x))
-        j = min(range(len(yCoord)-2), key=lambda l: abs((yCoord[l]+yCoord[l+1])/2.-y))
+        if len(xCoord.shape)==1:
+          # -2 needed because of coords are for vertices and need to be averaged to centers
+          i = min(range(len(xCoord)-2), key=lambda l: abs((xCoord[l]+xCoord[l+1])/2.-x))
+          j = min(range(len(yCoord)-2), key=lambda l: abs((yCoord[l]+yCoord[l+1])/2.-y))
+        else:
+          idx = np.abs( np.fabs(xCoord-x)+np.fabs(yCoord-y) ).argmin()
+          j,i = np.unravel_index(idx,xCoord.shape)
+          j=j-1; i=i-1;
         if not i==None:
           val = zData[j,i]
           if val is np.ma.masked: return 'x,y=%.3f,%.3f  %s(%i,%i)=NaN'%(x,y,variableName,i+1,j+1)
