@@ -78,7 +78,7 @@ def createUI(fileVarSlice, args):
   if debug: print 'createUI: fileName=',fileName,'variableName=',variableName,'sliceSpecs=',sliceSpecs
 
   # Open netcdf file
-  try: rg=Dataset(fileName, 'r');
+  try: rg = Dataset(fileName, 'r');
   except:
     if os.path.isfile(fileName): raise MyError('There was a problem opening "'+fileName+'".')
     raise MyError('Could not find file "'+fileName+'".')
@@ -118,7 +118,7 @@ def createUI(fileVarSlice, args):
   if var1.rank==0:
     for d in var1.allDims:
       print '%s = %g %s'%(d.name,d.values[0],d.units)
-    print '%s = %g %s'%(var1.name,var1.data,var1.units)
+    print var1.name+' = '+repr(var1.data)+'   '+var1.units
     exit(0)
   elif var1.rank==1: # Line plot
     if var1.dims[0].isZaxis: # Transpose 1d plot
@@ -151,7 +151,8 @@ def createUI(fileVarSlice, args):
       if args.supergrid==None:
         xCoord = coordData[1]; yCoord = coordData[0]
       else:
-        raise MyError('oops')
+        xCoord, xLims = readSGvar(args.supergrid, 'x', var1.dims)
+        yCoord, yLims = readSGvar(args.supergrid, 'y', var1.dims)
       zData = var1.data
       yDim = var1.dims[0]
     plt.pcolormesh(xCoord,yCoord,zData)
@@ -399,13 +400,14 @@ class NetcdfSlice:
     slices1 = []; slices2 = []
     for d in self.allDims:
       d.getData()
-      if d.slice2: slices1.append( d.slice1 ); slices2.append( d.slice1 )
-      else: slices1.append( d.slice1 ); slices2.append( d.slice2 )
-    if slices2[0] == None:
+      if d.slice2: slices1.append( d.slice1 ); slices2.append( d.slice2 )
+      else: slices1.append( d.slice1 ); slices2.append( d.slice1 )
+    if all(s==None for s in slices2):
       self.data = np.squeeze( self.variableHandle[slices1] )
     else:
-      self.data = np.squeeze( np.append(
-        self.variableHandle[slices1], self.variableHandle[slices2], axis=len(slices2)-1) )
+      self.data = np.ma.concatenate(
+        ( np.squeeze( self.variableHandle[slices1] ),
+          np.squeeze( self.variableHandle[slices2] ) ), axis=1)
 
 
 def splitFileVarPos(string):
@@ -550,6 +552,41 @@ def extrapCoord(xCell):
   newCoord = np.append(newCoord, [1.5*xCell[-1] - 0.5*xCell[-2]])
   return newCoord
 
+
+def readSGvar(fileName, varName, varDims):
+  try: rg = Dataset(fileName,'r')
+  except:
+    if os.path.isfile(fileName): raise MyError('There was a problem opening "'+fileName+'".')
+    raise MyError('Could not find file "'+fileName+'".')
+
+  if not varName in rg.variables:
+    raise MyError('Could not find %s in %s'%(varName,fileName))
+
+  dims = rg.dimensions
+  xVarDim = None; yVarDim = None
+  for d in varDims:
+    if 2*d.lenInFile==len(dims['nx']):
+      if xVarDim: raise MyError('Too many dimensions matches for nx')
+      else: xVarDim = d
+    if 2*d.lenInFile==len(dims['ny']):
+      if yVarDim: raise MyError('Too many dimensions matches for nx')
+      else: yVarDim = d
+  xSlice1 = slice(xVarDim.slice1.start*2, xVarDim.slice1.stop*2+1, 2)
+  ySlice1 = slice(yVarDim.slice1.start*2, yVarDim.slice1.stop*2+1, 2)
+  if xVarDim.slice2==None:
+    cData = rg.variables[varName][ySlice1,xSlice1]
+  else:
+    xSlice2 = slice(xVarDim.slice2.start*2+1, xVarDim.slice2.stop*2+1, 2)
+    ySlice2 = slice(yVarDim.slice1.start*2, yVarDim.slice1.stop*2+1, 2)
+    cData1 = rg.variables[varName][ySlice1,xSlice1]
+    cData2 = rg.variables[varName][ySlice2,xSlice2]
+    if varName=='x': cData2 = cData2 + 361.
+    cData = np.append( cData1, cData2, axis=1)
+  cMin = np.min( cData[:,0] ); cMin = min( cMin, np.min( cData[:,-1] ) )
+  cMin = min( cMin, np.min( cData[0,:] ) ); cMin = min( cMin, np.min( cData[-1,:] ) )
+  cMax = np.max( cData[:,0] ); cMax = max( cMax, np.max( cData[:,-1] ) )
+  cMax = max( cMax, np.max( cData[0,:] ) ); cMax = max( cMax, np.max( cData[-1,:] ) )
+  return cData, (cMin, cMax)
 
 
 # Invoke parseCommandLine(), the top-level prodedure
