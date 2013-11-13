@@ -193,9 +193,9 @@ def createUI(fileVarSlice, args):
           i = min(range(len(xCoord)-2), key=lambda l: abs((xCoord[l]+xCoord[l+1])/2.-x))
           j = min(range(len(yCoord)-2), key=lambda l: abs((yCoord[l]+yCoord[l+1])/2.-y))
         else:
-          idx = np.abs( np.fabs(xCoord-x)+np.fabs(yCoord-y) ).argmin()
-          j,i = np.unravel_index(idx,xCoord.shape)
-          j=j-1; i=i-1;
+          idx = np.abs( np.fabs( xCoord[0:-1,0:-1]+xCoord[1:,1:]+xCoord[0:-1,1:]+xCoord[1:,0:-1]-4*x)
+              +np.fabs( yCoord[0:-1,0:-1]+yCoord[1:,1:]+yCoord[0:-1,1:]+yCoord[1:,0:-1]-4*y) ).argmin()
+          j,i = np.unravel_index(idx,zData.shape)
         if not i==None:
           val = zData[j,i]
           if val is np.ma.masked: return 'x,y=%.3f,%.3f  %s(%i,%i)=NaN'%(x,y,variableName,i+1,j+1)
@@ -407,7 +407,7 @@ class NetcdfSlice:
       d.getData()
       if d.slice2: slices1.append( d.slice1 ); slices2.append( d.slice2 )
       else: slices1.append( d.slice1 ); slices2.append( d.slice1 )
-    if all(s==None for s in slices2):
+    if slices1==slices2:
       self.data = np.squeeze( self.variableHandle[slices1] )
     else:
       self.data = np.ma.concatenate(
