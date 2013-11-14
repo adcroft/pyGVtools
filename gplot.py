@@ -36,7 +36,6 @@ def parseCommandLine():
   This is the highest level procedure invoked from the very end of the script.
   """
   global debug # Declared global in order to set it
-  global optCmdLineArgs # For optional argument handling within routines
 
   # Arguments
   parser = argparse.ArgumentParser(description=
@@ -105,11 +104,11 @@ def createUI(fileVarSlice, args):
   var1.getData() # Actually read data from file
 
   # Optionally mask out a specific value
-  if optCmdLineArgs.ignore:
-    var1.data = np.ma.masked_array(var1.data, mask=[var1.data==optCmdLineArgs.ignore])
+  if args.ignore:
+    var1.data = np.ma.masked_array(var1.data, mask=[var1.data==args.ignore])
 
-  if optCmdLineArgs.list: print 'createUI: Data =\n',var1.data
-  if optCmdLineArgs.stats:
+  if args.list: print 'createUI: Data =\n',var1.data
+  if args.stats:
     dMin = np.min(var1.data); dMax = np.max(var1.data)
     print 'Mininum=',dMin,'Maximum=',dMax
     #dMin = np.min(var1.data[var1.data!=0]); dMax = np.max(var1.data[var1.data!=0])
@@ -161,7 +160,7 @@ def createUI(fileVarSlice, args):
       if yDim.positiveDown: plt.gca().invert_yaxis(); yLims = reversed(yLims)
     plt.title(var1.label)
     plt.xlim(xLims); plt.ylim(yLims)
-    makeGuessAboutCmap()
+    makeGuessAboutCmap(clim=args.clim, colormap=args.colormap)
     plt.tight_layout()
     plt.colorbar()
   axis=plt.gca()
@@ -172,8 +171,8 @@ def createUI(fileVarSlice, args):
       text = text + d.name + ' = ' + str(d.values[0])
       if d.units: text = text + ' (' + d.units + ')'
     axis.annotate(text, xy=(0.005,.995), xycoords='figure fraction', verticalalignment='top', fontsize=8)
-  if optCmdLineArgs.output:
-    plt.savefig(optCmdLineArgs.output,pad_inches=0.)
+  if args.output:
+    plt.savefig(args.output,pad_inches=0.)
   else: # Interactive
     def keyPress(event):
       if event.key=='q': exit(0)
@@ -489,13 +488,12 @@ def isAttrEqualTo(ncObj, name, value):
 
 
 # Make an intelligent choice about which colormap to use
-def makeGuessAboutCmap():
+def makeGuessAboutCmap(clim=None, colormap=None):
   vmin, vmax = plt.gci().get_clim()
   if vmin==vmax:
     if debug: print 'vmin,vmax=',vmin,vmax
     vmin = vmin - 1; vmax = vmax + 1
-  if optCmdLineArgs.colormap:
-    plt.set_cmap(optCmdLineArgs.colormap)
+  if colormap: plt.set_cmap(colormap)
   else:
     if vmin*vmax>=0: # Single signed data
       if max(vmin,vmax)>0: plt.set_cmap('hot')
@@ -509,8 +507,8 @@ def makeGuessAboutCmap():
         plt.clim(vmin,-vmin)
         plt.set_cmap('seismic')
       else: plt.set_cmap('spectral')
-  if optCmdLineArgs.clim:
-    plt.clim(optCmdLineArgs.clim[0],optCmdLineArgs.clim[1])
+  if clim:
+    plt.clim(clim[0],clim[1])
 
 
 # Generate a succinct summary of the netcdf file contents
