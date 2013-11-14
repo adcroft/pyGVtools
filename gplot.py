@@ -15,7 +15,7 @@ import re
 import os
 try: import argparse
 except: raise MyError('This version of python is not new enough. python 2.7 or newer is required.')
-try: from netCDF4 import Dataset
+try: from netCDF4 import MFDataset
 except: raise MyError('Unable to import netCDF4 module. Check your PYTHONPATH.\n'
           +'Perhaps try:\n   module load python_netcdf4')
 try: import numpy as np
@@ -83,7 +83,7 @@ def createUI(fileVarSlice, args):
   if debug: print 'createUI: fileName=',fileName,'variableName=',variableName,'sliceSpecs=',sliceSpecs
 
   # Open netcdf file
-  try: rg = Dataset(fileName, 'r');
+  try: rg = MFDataset(fileName, 'r');
   except:
     if os.path.isfile(fileName): raise MyError('There was a problem opening "'+fileName+'".')
     raise MyError('Could not find file "'+fileName+'".')
@@ -478,7 +478,7 @@ def splitFileVarPos(string):
   Split a string in form of "file,variable[...]" into three string parts
   Valid forms are "file", "file,variable" or "file,variable,3,j=,=2.,z=3.1:5.4,..."
   """
-  m = re.match(r'([\w\.~/]+)[,:]?(.*)',string)
+  m = re.match('([\w\.~/\*]+)[,:]?(.*)',string)
   fName = m.group(1)
   (vName, pSpecs) = splitVarPos(m.group(2))
   if debug: print 'splitFileVarPos: fName=',fName,'vName=',vName,'pSpecs=',pSpecs
@@ -529,7 +529,9 @@ def isAttrEqualTo(ncObj, name, value):
   """
   if not ncObj: return False
   if name in ncObj.ncattrs():
-    if value.lower() in str(ncObj.getncattr(name)).lower():
+    # .getncattr() works with Dataset but not MFDataset ???
+    #if value.lower() in str(ncObj.getncattr(name)).lower():
+    if value.lower() in str(ncObj.__getattribute__(name)).lower():
       return True
   return False
 
