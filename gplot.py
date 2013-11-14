@@ -51,6 +51,8 @@ def parseCommandLine():
                   help='Mask out the specified value.')
   parser.add_argument('-sg','--supergrid', type=str, default=None,
                   help='The supergrid to use for horizontal coordinates.')
+  parser.add_argument('--animate', action='store_true',
+                  help='Animate of the unlimited dimension.')
   parser.add_argument('-o','--output', type=str, default='',
                   help='Name of image file to create.')
   parser.add_argument('--stats', action='store_true',
@@ -98,11 +100,33 @@ def createUI(fileVarSlice, args):
 
   # Obtain meta data along with 1D coordinates, labels and limits
   var1 = NetcdfSlice(rg, variableName, sliceSpecs)
-  if var1.rank>2: # Intercept requests for rank >2
+
+
+  # Intercept requests for rank >2
+  if var1.rank==3 and args.animate and not var1.unlimitedDim==None:
+    n0 = var1.unlimitedDim.slice1.start
+    n1 = var1.unlimitedDim.slice1.stop
+    var1.unlimitedDim.len = 1
+    var1.singleDims.insert(0, var1.unlimitedDim)
+    var1.dims.remove(var1.unlimitedDim)
+    var1.rank = 2
+    for n in range(n0,n1):
+      var1.singleDims[0].slice1 = slice(n,n+1)
+      plt.clf()
+      render(var1, args)
+      if not args.output:
+        if n==n0: plt.show(block=False)
+        else: plt.draw()
+  elif var1.rank>2:
     summarizeFile(rg); print
     raise MyError( 'Variable name "%s" has resolved rank %i. Only 1D and 2D data can be plotted until you buy a holgraphic display.'%(variableName, var1.rank))
-  var1.getData() # Actually read data from file
+  else:
+    render(var1, args)
+    if not args.output: plt.show()
+  
 
+def render(var1, args):
+  var1.getData() # Actually read data from file
   # Optionally mask out a specific value
   if args.ignore:
     var1.data = np.ma.masked_array(var1.data, mask=[var1.data==args.ignore])
@@ -117,7 +141,7 @@ def createUI(fileVarSlice, args):
   if var1.rank==0:
     for d in var1.allDims:
       print '%s = %g %s'%(d.name,d.values[0],d.units)
-    print var1.name+' = '+repr(var1.data)+'   '+var1.units
+    print var1.vname+' = '+repr(var1.data)+'   '+var1.units
     exit(0)
   elif var1.rank==1: # Line plot
     if var1.dims[0].isZaxis: # Transpose 1d plot
@@ -173,7 +197,7 @@ def createUI(fileVarSlice, args):
     axis.annotate(text, xy=(0.005,.995), xycoords='figure fraction', verticalalignment='top', fontsize=8)
   if args.output:
     plt.savefig(args.output,pad_inches=0.)
-  else: # Interactive
+  elif not args.animate: # Interactive and static
     def keyPress(event):
       if event.key=='q': exit(0)
     if var1.rank==1:
@@ -182,8 +206,8 @@ def createUI(fileVarSlice, args):
         i = min(range(len(xCoord)-1), key=lambda l: abs(xCoord[l]-x))
         if not i==None:
           val = yData[i]
-          if val is np.ma.masked: return 'x=%.3f  %s(%i)=NaN'%(x,variableName,i+1)
-          else: return 'x=%.3f  %s(%i)=%g'%(x,variableName,i+1,val)
+          if val is np.ma.masked: return 'x=%.3f  %s(%i)=NaN'%(x,var1.vname,i+1)
+          else: return 'x=%.3f  %s(%i)=%g'%(x,var1.vname,i+1,val)
         else: return 'x=%.3f y=%.3f'%(x,y)
     elif var1.rank==2:
       def statusMesg(x,y):
@@ -197,8 +221,8 @@ def createUI(fileVarSlice, args):
           j,i = np.unravel_index(idx,zData.shape)
         if not i==None:
           val = zData[j,i]
-          if val is np.ma.masked: return 'x,y=%.3f,%.3f  %s(%i,%i)=NaN'%(x,y,variableName,i+1,j+1)
-          else: return 'x,y=%.3f,%.3f  %s(%i,%i)=%g'%(x,y,variableName,i+1,j+1,val)
+          if val is np.ma.masked: return 'x,y=%.3f,%.3f  %s(%i,%i)=NaN'%(x,y,var1.vname,i+1,j+1)
+          else: return 'x,y=%.3f,%.3f  %s(%i,%i)=%g'%(x,y,var1.vname,i+1,j+1,val)
         else: return 'x,y=%.3f,%.3f'%(x,y)
       xmin,xmax=axis.get_xlim(); ymin,ymax=axis.get_ylim();
       def zoom(event): # Scroll wheel up/down
@@ -218,7 +242,6 @@ def createUI(fileVarSlice, args):
       plt.gcf().canvas.mpl_connect('button_press_event', zoom2)
     plt.gca().format_coord = statusMesg
     plt.gcf().canvas.mpl_connect('key_press_event', keyPress)
-    plt.show()
 
 
 class NetcdfDim:
@@ -321,10 +344,12 @@ class NetcdfDim:
     self.limits = (None, None)
     self.dimensionVariableHandle = dimensionVariableHandle
     self.values = None
+    self.isUnlimited = dimensionHandle.isunlimited()
   def getData(self):
     """
     Read dimension variable data if it has not been read
     """
+    #if not self.values==None: return # Already read
     if self.dimensionVariableHandle: # If the handle is None then the values were created already
       if self.slice2:
         cMin = 1.5*self.dimensionVariableHandle[0] - 0.5*self.dimensionVariableHandle[1]
@@ -397,9 +422,11 @@ class NetcdfSlice:
 
     # Group singleton dimensions and active dimensions
     activeDims = []; singleDims = []
+    self.unlimitedDim = None
     for d in dims:
       if d.len==1: singleDims.append(d)
       else: activeDims.append(d)
+      if d.isUnlimited: self.unlimitedDim = d
 
     # Attributes of class
     self.variableHandle = variableHandle
@@ -408,6 +435,7 @@ class NetcdfSlice:
     self.singleDims = singleDims
     self.data = None
     self.label, self.name, self.units = constructLabel(variableHandle, variableName)
+    self.vname = variableName
     self.rank = len(self.dims)
   def getData(self):
     """
