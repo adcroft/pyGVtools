@@ -24,6 +24,7 @@ How to use
 
 Simple examples:
 
-    gplot.py dat.nc:depth  
-    gplot.py surf.nc:sst,5
-	
+    gplot.py dat.nc,depth  
+    gplot.py surf.nc,sst,5
+    gplot.py surf.nc,sst,5,201:300,150:
+    gplot.py surf.nc,sst,5,=0:,:
