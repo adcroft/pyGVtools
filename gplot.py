@@ -55,6 +55,10 @@ def parseCommandLine():
                   help='Animate of the unlimited dimension.')
   parser.add_argument('-o','--output', type=str, default='',
                   help='Name of image file to create.')
+  parser.add_argument('-r','--resolution', type=int, default=600,
+                  help='Vertial resolution for image in video size notation, e.g. 720 means 720p.')
+  parser.add_argument('-w','--widescreen', action='store_true',
+                  help='Use a 16:9 aspect ratio instead of 4:3.')
   parser.add_argument('--stats', action='store_true',
                   help='Print the statistics of viewed data.')
   parser.add_argument('--list', action='store_true',
@@ -101,19 +105,25 @@ def createUI(fileVarSlice, args):
   # Obtain meta data along with 1D coordinates, labels and limits
   var1 = NetcdfSlice(rg, variableName, sliceSpecs)
 
+  # Set figure shape
+  if args.widescreen: plt.figure(figsize=(32./3.,6))
+  else: plt.figure(figsize=(8,6))
 
-  # Intercept requests for rank >2
+  # Based on rank, either create interactive plot, animate or intercept requests for rank >2
   if var1.rank==3 and args.animate and not var1.unlimitedDim==None:
-    n0 = var1.unlimitedDim.slice1.start
-    n1 = var1.unlimitedDim.slice1.stop
-    var1.unlimitedDim.len = 1
+    n0 = var1.unlimitedDim.slice1.start; n1 = var1.unlimitedDim.slice1.stop
+    var1.rank = 2; var1.unlimitedDim.len = 1
     var1.singleDims.insert(0, var1.unlimitedDim)
     var1.dims.remove(var1.unlimitedDim)
-    var1.rank = 2
     for n in range(n0,n1):
       var1.singleDims[0].slice1 = slice(n,n+1)
-      plt.clf()
-      render(var1, args)
+      if n>0:
+        if args.output: plt.close()
+        else: plt.clf()
+      if args.output:
+        if args.widescreen: plt.figure(figsize=(32./3.,6))
+        else: plt.figure(figsize=(8,6))
+      render(var1, args, frame=n)
       if not args.output:
         if n==n0: plt.show(block=False)
         else: plt.draw()
@@ -125,7 +135,7 @@ def createUI(fileVarSlice, args):
     if not args.output: plt.show()
   
 
-def render(var1, args):
+def render(var1, args, frame=0):
   var1.getData() # Actually read data from file
   # Optionally mask out a specific value
   if args.ignore:
@@ -137,6 +147,7 @@ def render(var1, args):
     print 'Mininum=',dMin,'Maximum=',dMax
     #dMin = np.min(var1.data[var1.data!=0]); dMax = np.max(var1.data[var1.data!=0])
     #print 'Mininum=',dMin,'Maximum=',dMax,'(ignoring zeros)'
+
   # Now plot
   if var1.rank==0:
     for d in var1.allDims:
@@ -186,7 +197,7 @@ def render(var1, args):
     plt.xlim(xLims); plt.ylim(yLims)
     makeGuessAboutCmap(clim=args.clim, colormap=args.colormap)
     plt.tight_layout()
-    plt.colorbar()
+    plt.colorbar(fraction=.08)
   axis=plt.gca()
   if var1.singleDims:
     text = ''
@@ -196,7 +207,15 @@ def render(var1, args):
       if d.units: text = text + ' (' + d.units + ')'
     axis.annotate(text, xy=(0.005,.995), xycoords='figure fraction', verticalalignment='top', fontsize=8)
   if args.output:
-    plt.savefig(args.output,pad_inches=0.)
+    if args.widescreen: aspect = 16./9.
+    else: aspect = 4./3.
+    width = int(aspect * args.resolution) # First guess
+    width = width + ( width % 2 ) # Make even
+    plt.gcf().set_size_inches(width/100., args.resolution/100.) # Output is always 100 dpi ?
+    if args.animate:
+      try: plt.savefig(args.output%(frame),pad_inches=0.)
+      except: raise MyError('output filename must contain %D.Di when animating')
+    else: plt.savefig(args.output,pad_inches=0.)
   elif not args.animate: # Interactive and static
     def keyPress(event):
       if event.key=='q': exit(0)
