@@ -15,7 +15,7 @@ import re
 import os
 try: import argparse
 except: raise MyError('This version of python is not new enough. python 2.7 or newer is required.')
-try: from netCDF4 import MFDataset
+try: from netCDF4 import MFDataset, Dataset
 except: raise MyError('Unable to import netCDF4 module. Check your PYTHONPATH.\n'
           +'Perhaps try:\n   module load python_netcdf4')
 try: import numpy as np
@@ -83,10 +83,12 @@ def createUI(fileVarSlice, args):
   if debug: print 'createUI: fileName=',fileName,'variableName=',variableName,'sliceSpecs=',sliceSpecs
 
   # Open netcdf file
-  try: rg = MFDataset(fileName, 'r');
+  try: rg = MFDataset(fileName, 'r')
   except:
-    if os.path.isfile(fileName): raise MyError('There was a problem opening "'+fileName+'".')
-    raise MyError('Could not find file "'+fileName+'".')
+    try: rg = Dataset(fileName, 'r')
+    except:
+      if os.path.isfile(fileName): raise MyError('There was a problem opening "'+fileName+'".')
+      raise MyError('Could not find file "'+fileName+'".')
 
   # If no variable is specified, summarize the file contents and exit
   if not variableName:
@@ -123,7 +125,7 @@ def createUI(fileVarSlice, args):
       if args.output:
         if args.widescreen: plt.figure(figsize=(32./3.,6))
         else: plt.figure(figsize=(8,6))
-      render(var1, args, frame=n)
+      render(var1, args, frame=n+1)
       if not args.output:
         if n==n0: plt.show(block=False)
         else: plt.draw()
@@ -369,12 +371,15 @@ class NetcdfDim:
     Read dimension variable data if it has not been read
     """
     #if not self.values==None: return # Already read
-    if self.dimensionVariableHandle: # If the handle is None then the values were created already
-      if self.slice2:
-        cMin = 1.5*self.dimensionVariableHandle[0] - 0.5*self.dimensionVariableHandle[1]
-        cMax = 1.5*self.dimensionVariableHandle[-1] - 0.5*self.dimensionVariableHandle[-2]
-        self.values = np.append(self.dimensionVariableHandle[self.slice1], self.dimensionVariableHandle[self.slice2]+(cMax-cMin))
-      else: self.values = self.dimensionVariableHandle[self.slice1]
+    if self.values==None: # If the handle is None then the values were created already
+      if self.dimensionVariableHandle==None:
+        self.values = np.array(range(self.slice1.start, self.slice1.stop)) + 1
+      else:
+        if self.slice2:
+          cMin = 1.5*self.dimensionVariableHandle[0] - 0.5*self.dimensionVariableHandle[1]
+          cMax = 1.5*self.dimensionVariableHandle[-1] - 0.5*self.dimensionVariableHandle[-2]
+          self.values = np.append(self.dimensionVariableHandle[self.slice1], self.dimensionVariableHandle[self.slice2]+(cMax-cMin))
+        else: self.values = self.dimensionVariableHandle[self.slice1]
     if self.len>1:
       cMin = 1.5*self.values[0] - 0.5*self.values[1]
       cMax = 1.5*self.values[-1] - 0.5*self.values[-2]
@@ -478,7 +483,7 @@ def splitFileVarPos(string):
   Split a string in form of "file,variable[...]" into three string parts
   Valid forms are "file", "file,variable" or "file,variable,3,j=,=2.,z=3.1:5.4,..."
   """
-  m = re.match('([\w\.~/\*]+)[,:]?(.*)',string)
+  m = re.match('([\w\.~/\*\[\]]+)[,:]?(.*)',string)
   fName = m.group(1)
   (vName, pSpecs) = splitVarPos(m.group(2))
   if debug: print 'splitFileVarPos: fName=',fName,'vName=',vName,'pSpecs=',pSpecs
