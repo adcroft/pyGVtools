@@ -385,7 +385,7 @@ class NetcdfDim:
       cMax = 1.5*self.values[-1] - 0.5*self.values[-2]
     else: cMin = self.values[0]; cMax = cMin
     self.limits = (cMin, cMax)
-    if debug: print self
+    if debug: print 'NetcdfDim.getData: ',self
   def __repr__(self):
     return 'len=%i, name="%s", units=%s, label="%s"'%(self.len, self.name, self.units, self.label)+' min/max='+repr(self.limits)+' slice1='+repr(self.slice1)+' slice2='+repr(self.slice2) #+' values='+repr(self.values)
 
@@ -400,7 +400,7 @@ class NetcdfSlice:
     on that corresponding subset of data
     """
     variableHandle = rootGroup.variables[variableName]
-    if debug: print 'NetcdfSlice: variableHandle=',variableHandle
+    if debug: print 'NetcdfSlice: variableName=',variableName
     variableDims = variableHandle.dimensions
     if debug: print 'NetcdfSlice: variableDims=',variableDims
     if not (sliceSpecs==None) and len(sliceSpecs)>len(variableDims):
@@ -515,7 +515,6 @@ def constructLabel(ncObj, default=''):
   """
   Returns a string combining CF attiributes "long_name" and "units"
   """
-  if debug: print 'constructLabel: ncObj=',ncObj
   label = ''; name = None
   if 'long_name' in ncObj.ncattrs():
     label += str(ncObj.long_name)
@@ -525,6 +524,7 @@ def constructLabel(ncObj, default=''):
     units = str(ncObj.units)
     label += ' ('+units+')'
   if len(label)==0: label = default+' (index)'
+  if debug: print 'constructLabel: label,name,units=', label, name, units
   return label, name ,units
 
 
