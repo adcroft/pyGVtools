@@ -189,6 +189,7 @@ def render(var1, args, frame=0):
       else:
         xCoord, xLims = readSGvar(args.supergrid, 'x', var1.dims)
         yCoord, yLims = readSGvar(args.supergrid, 'y', var1.dims)
+        xLabel = u'Longitude (\u00B0E)' ; yLabel = u'Latitude (\u00B0N)'
       zData = var1.data
       yDim = var1.dims[0]
     plt.pcolormesh(xCoord,yCoord,zData)
@@ -197,6 +198,7 @@ def render(var1, args, frame=0):
       if yDim.positiveDown: plt.gca().invert_yaxis(); yLims = reversed(yLims)
     plt.title(var1.label)
     plt.xlim(xLims); plt.ylim(yLims)
+    plt.xlabel(xLabel) ; plt.ylabel(yLabel)
     makeGuessAboutCmap(clim=args.clim, colormap=args.colormap)
     plt.tight_layout()
     plt.colorbar(fraction=.08)
