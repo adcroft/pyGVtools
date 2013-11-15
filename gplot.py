@@ -196,7 +196,10 @@ def render(var1, args, frame=0):
     if yDim.isZaxis: # Z on y axis ?
       if yCoord[0]>yCoord[-1]: plt.gca().invert_yaxis(); yLims = reversed(yLims)
       if yDim.positiveDown: plt.gca().invert_yaxis(); yLims = reversed(yLims)
-    plt.title(var1.label)
+    if len(var1.label)>50: fontsize=10
+    elif len(var1.label)>30: fontsize=12
+    else: fontsize=14;
+    plt.title(var1.label,fontsize=fontsize)
     plt.xlim(xLims); plt.ylim(yLims)
     plt.xlabel(xLabel) ; plt.ylabel(yLabel)
     makeGuessAboutCmap(clim=args.clim, colormap=args.colormap)
