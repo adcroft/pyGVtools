@@ -508,7 +508,7 @@ def splitFileVarPos(string):
   Split a string in form of "file,variable[...]" into three string parts
   Valid forms are "file", "file,variable" or "file,variable,3,j=,=2.,z=3.1:5.4,..."
   """
-  m = re.match('([\w\.~/\*\[\]]+)[,:]?(.*)',string)
+  m = re.match('([\w\.~/\*\-\[\]]+)[,:]?(.*)',string)
   fName = m.group(1)
   (vName, pSpecs) = splitVarPos(m.group(2))
   if debug: print 'splitFileVarPos: fName=',fName,'vName=',vName,'pSpecs=',pSpecs
