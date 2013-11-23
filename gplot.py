@@ -120,6 +120,7 @@ def createUI(fileVarSlice, args):
     var1.dims.remove(var1.unlimitedDim)
     for n in range(n0,n1):
       var1.singleDims[0].slice1 = slice(n,n+1)
+      var1.singleDims[0].getData(forceRead=True)
       if n>0:
         if args.output:
           plt.close(); setFigureSize(aspect, args.resolution)
@@ -365,12 +366,12 @@ class NetcdfDim:
     self.dimensionVariableHandle = dimensionVariableHandle
     self.values = None
     self.isUnlimited = dimensionHandle.isunlimited()
-  def getData(self):
+  def getData(self, forceRead=False):
     """
     Read dimension variable data if it has not been read
     """
     #if not self.values==None: return # Already read
-    if self.values==None: # If the handle is None then the values were created already
+    if self.values==None or forceRead: # If the handle is None then the values were created already
       if self.dimensionVariableHandle==None:
         self.values = np.array(range(self.slice1.start, self.slice1.stop)) + 1
       else:
