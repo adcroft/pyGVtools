@@ -108,8 +108,9 @@ def createUI(fileVarSlice, args):
   var1 = NetcdfSlice(rg, variableName, sliceSpecs)
 
   # Set figure shape
-  if args.widescreen: plt.figure(figsize=(32./3.,6))
-  else: plt.figure(figsize=(8,6))
+  if args.widescreen: aspect = 16./9.
+  else: aspect = 4./3.
+  setFigureSize(aspect, args.resolution)
 
   # Based on rank, either create interactive plot, animate or intercept requests for rank >2
   if var1.rank==3 and args.animate and not var1.unlimitedDim==None:
@@ -120,11 +121,9 @@ def createUI(fileVarSlice, args):
     for n in range(n0,n1):
       var1.singleDims[0].slice1 = slice(n,n+1)
       if n>0:
-        if args.output: plt.close()
+        if args.output:
+          plt.close(); setFigureSize(aspect, args.resolution)
         else: plt.clf()
-      if args.output:
-        if args.widescreen: plt.figure(figsize=(32./3.,6))
-        else: plt.figure(figsize=(8,6))
       render(var1, args, frame=n+1)
       if not args.output:
         if n==n0: plt.show(block=False)
@@ -154,7 +153,7 @@ def render(var1, args, frame=0):
   if var1.rank==0:
     for d in var1.allDims:
       print '%s = %g %s'%(d.name,d.values[0],d.units)
-    print var1.vname+' = '+repr(var1.data)+'   '+var1.units
+    print var1.vname+' = ',var1.data,'   '+var1.units
     exit(0)
   elif var1.rank==1: # Line plot
     if var1.dims[0].isZaxis: # Transpose 1d plot
@@ -214,11 +213,6 @@ def render(var1, args, frame=0):
       if d.units: text = text + ' (' + d.units + ')'
     axis.annotate(text, xy=(0.005,.995), xycoords='figure fraction', verticalalignment='top', fontsize=8)
   if args.output:
-    if args.widescreen: aspect = 16./9.
-    else: aspect = 4./3.
-    width = int(aspect * args.resolution) # First guess
-    width = width + ( width % 2 ) # Make even
-    plt.gcf().set_size_inches(width/100., args.resolution/100.) # Output is always 100 dpi ?
     if args.animate:
       try: plt.savefig(args.output%(frame),pad_inches=0.)
       except: raise MyError('output filename must contain %D.Di when animating')
@@ -625,6 +619,15 @@ def extrapCoord(xCell):
   newCoord = np.insert(newCoord, 0, 1.5*xCell[0] - 0.5*xCell[1])
   newCoord = np.append(newCoord, [1.5*xCell[-1] - 0.5*xCell[-2]])
   return newCoord
+
+
+def setFigureSize(aspect, verticalResolution):
+  """
+  Set the figure size based on vertical resolution and aspect ratio
+  """
+  width = int(aspect * verticalResolution) # First guess
+  width = width + ( width % 2 ) # Make even
+  plt.figure(figsize=(width/100., verticalResolution/100.)) # 100 dpi always?
 
 
 def readSGvar(fileName, varName, varDims):
