@@ -39,32 +39,55 @@ def parseCommandLine():
 
   # Arguments
   parser = argparse.ArgumentParser(description=
-       'Yada yada yada',
+       '''
+       gplot.py can plot 1- and 2-dimensional data, which itself can be extracted from
+       multiple-dimensional data.
+       ''',
        epilog='Written by A.Adcroft, 2013.')
   parser.add_argument('file_var_slice', type=str,
-		  help='File/variable/slice specification in the form file,variable,slice1,slice2,slice3,...')
+         metavar='FILE[,VARIABLE[,SLICE1[,SLICE2[...]]]]',
+	help='''File, variable and slice specification. Valid forms include filename.nc ;
+        filename.nc,variable ; filename.nc,variable,slice ; filename.nc,variable,slice1,slice2 ; etc.
+        Each slice takes the form of single VALUE or [START]:[STOP] range.
+        When VALUE, START or STOP are positive integers, they refer to indices (START at 1).
+        In the range form (with a colon), a missing START or STOP will indicate the beginning or
+        end of the dimension.
+        An inverted range (START>STOP) indicates to wrap around a periodic dimension. 
+        Any of VALUE, START or STOP can take the form '=POS' or '=POS1:POS2' in which case POS, POS1 and POS2 
+        are coordinate values or ranges.
+        ''')
   parser.add_argument('-cm','--colormap', type=str, default='',
-                  help='Specify the colormap.')
+        help=''' Specify the colormap. The default colormap is determined by the data.
+        For single-signed data with some values near zero, the 'hot' colormap is used.
+        For multi-signed data with near symmetric ranges, the 'seismic' colormap is used, and the color
+        range automatically centered on zero.
+        Otherwise, the 'spectral' colormap is used.
+        See http://matplotlib.org/examples/color/colormaps_reference.html for a list of colormaps.
+        ''')
   parser.add_argument('--clim', type=float, nargs=2,
-                  help='Specify the lower/upper color range.')
+        metavar=('MIN','MAX'),
+        help='''Specify the minimum/maximum color range.
+        Values outside this range will be clipped to the minimum or maximum.''')
   parser.add_argument('-i','--ignore', type=float, nargs=1,
-                  help='Mask out the specified value.')
+        help='Mask out the specified value.')
   parser.add_argument('-sg','--supergrid', type=str, default=None,
-                  help='The supergrid to use for horizontal coordinates.')
+        help='The supergrid to use for horizontal coordinates.')
+  parser.add_argument('-e','--elevation', type=str, default=None,
+        help='The file(,variable] from which to read elevation for vertical section plots.')
   parser.add_argument('--animate', action='store_true',
-                  help='Animate of the unlimited dimension.')
+        help='Animate over the unlimited dimension.')
   parser.add_argument('-o','--output', type=str, default='',
-                  help='Name of image file to create.')
+        help='Name of image file to create.')
   parser.add_argument('-r','--resolution', type=int, default=600,
-                  help='Vertial resolution for image in video size notation, e.g. 720 means 720p.')
+        help='Vertial resolution for image in video size notation, e.g. 720 means 720p.')
   parser.add_argument('-w','--widescreen', action='store_true',
-                  help='Use a 16:9 aspect ratio instead of 4:3.')
+        help='Use a 16:9 aspect ratio instead of 4:3.')
   parser.add_argument('--stats', action='store_true',
-                  help='Print the statistics of viewed data.')
+        help='Print the statistics of viewed data.')
   parser.add_argument('--list', action='store_true',
-                  help='Print selected data to terminal.')
+        help='Print selected data to terminal.')
   parser.add_argument('-d','--debug', action='store_true',
-                  help='Turn on debugging information.')
+        help='Turn on debugging information.')
   optCmdLineArgs = parser.parse_args()
 
   if optCmdLineArgs.debug: debug = True
@@ -146,9 +169,13 @@ def render(var1, args, frame=0):
   if args.list: print 'createUI: Data =\n',var1.data
   if args.stats:
     dMin = np.min(var1.data); dMax = np.max(var1.data)
-    print 'Mininum=',dMin,'Maximum=',dMax
-    #dMin = np.min(var1.data[var1.data!=0]); dMax = np.max(var1.data[var1.data!=0])
-    #print 'Mininum=',dMin,'Maximum=',dMax,'(ignoring zeros)'
+    if dMin==0 and dMax>0:
+      dMin = np.min(var1.data[var1.data!=0])
+      print 'Mininum=',dMin,'(ignoring zeros) Maximum=',dMax
+    elif dMax==0 and dMin<0:
+      dMax = np.max(var1.data[var1.data!=0])
+      print 'Mininum=',dMin,'Maximum=',dMax,'(ignoring zeros)'
+    else: print 'Mininum=',dMin,'Maximum=',dMax
 
   # Now plot
   if var1.rank==0:
@@ -172,8 +199,6 @@ def render(var1, args, frame=0):
   elif var1.rank==2: # Pseudo color plot
     # Add an extra element to coordinate to force pcolormesh to draw all cells
     coordData = []
-    #coordData.append( np.append(var1.dims[0].values,2*var1.dims[0].values[-1]-var1.dims[0].values[-2]) )
-    #coordData.append( np.append(var1.dims[1].values,2*var1.dims[1].values[-1]-var1.dims[1].values[-2]) )
     coordData.append( extrapCoord( var1.dims[0].values ) )
     coordData.append( extrapCoord( var1.dims[1].values ) )
     if var1.dims[1].isZaxis: # Happens for S(t,z)
@@ -543,26 +568,23 @@ def isAttrEqualTo(ncObj, name, value):
 
 # Make an intelligent choice about which colormap to use
 def makeGuessAboutCmap(clim=None, colormap=None):
-  vmin, vmax = plt.gci().get_clim()
+  if clim:
+    vmin, vmax = clim[0], clim[1]
+  else:
+    vmin, vmax = plt.gci().get_clim()
+    cutOffFrac = 0.5
+    if -vmin<vmax and -vmin/vmax>cutOffFrac: vmin=-vmax
+    elif -vmin>vmax and -vmax/vmin>cutOffFrac: vmax=-vmin
   if vmin==vmax:
     if debug: print 'vmin,vmax=',vmin,vmax
     vmin = vmin - 1; vmax = vmax + 1
+  plt.clim(vmin,vmax)
   if colormap: plt.set_cmap(colormap)
   else:
-    if vmin*vmax>=0: # Single signed data
-      if max(vmin,vmax)>0: plt.set_cmap('hot')
-      else: plt.set_cmap('hot_r')
-    else: # Multi-signed data
-      cutOffFrac = 0.3
-      if -vmin<vmax and -vmin/vmax>cutOffFrac:
-        plt.clim(-vmax,vmax)
-        plt.set_cmap('seismic')
-      elif -vmin>vmax and -vmax/vmin>cutOffFrac:
-        plt.clim(vmin,-vmin)
-        plt.set_cmap('seismic')
-      else: plt.set_cmap('spectral')
-  if clim:
-    plt.clim(clim[0],clim[1])
+    if vmin*vmax>=0 and vmax>0 and 3*vmin<vmax: plt.set_cmap('hot') # Single signed +ve data
+    elif vmin*vmax>=0 and vmin<0 and 3*vmax>vmin: plt.set_cmap('hot_r') # Single signed -ve data
+    elif abs((vmax+vmin)/(vmax-vmin))<.01: plt.set_cmap('seismic') # Multi-signed symmetric data
+    else: plt.set_cmap('spectral')
 
 
 # Generate a succinct summary of the netcdf file contents
