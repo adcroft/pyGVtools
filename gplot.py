@@ -13,6 +13,7 @@ class MyError(Exception):
 # Try to import required packages/modules
 import re
 import os
+import time
 try: import argparse
 except: raise MyError('This version of python is not new enough. python 2.7 or newer is required.')
 try: from netCDF4 import MFDataset, Dataset
@@ -36,6 +37,8 @@ def parseCommandLine():
   This is the highest level procedure invoked from the very end of the script.
   """
   global debug # Declared global in order to set it
+  global start_time
+  start_time = time.time()
 
   # Arguments
   parser = argparse.ArgumentParser(description=
@@ -106,8 +109,9 @@ def createUI(fileVarSlice, args):
   if debug: print 'createUI: fileName=',fileName,'variableName=',variableName,'sliceSpecs=',sliceSpecs
 
   # Open netcdf file
-  try: rg = MFDataset(fileName, 'r')
+  try: rg = MFDataset(fileName, 'r', aggdim='time')
   except:
+    if debug: print 'Unable to open %s with MFDataset'%(fileName)
     try: rg = Dataset(fileName, 'r')
     except:
       if os.path.isfile(fileName): raise MyError('There was a problem opening "'+fileName+'".')
@@ -240,6 +244,10 @@ def render(var1, args, frame=0):
     axis.annotate(text, xy=(0.005,.995), xycoords='figure fraction', verticalalignment='top', fontsize=8)
   if args.output:
     if args.animate:
+      dt = time.time() - start_time
+      nf = var1.singleDims[0].lenInFile
+      print 'Writing file "%s" (%i/%i)'%(args.output%(frame),frame,nf), \
+            'Elapsed %.1fs, %.2f FPS, total %.1fs, remaining %.1fs'%(dt, frame/dt, 1.*nf/frame*dt, (1.*nf/frame-1.)*dt)
       try: plt.savefig(args.output%(frame),pad_inches=0.)
       except: raise MyError('output filename must contain %D.Di when animating')
     else: plt.savefig(args.output,pad_inches=0.)
