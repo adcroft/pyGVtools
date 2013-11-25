@@ -73,6 +73,8 @@ def parseCommandLine():
         Values outside this range will be clipped to the minimum or maximum.''')
   parser.add_argument('-i','--ignore', type=float, nargs=1,
         help='Mask out the specified value.')
+  parser.add_argument('-s','--scale', type=float, nargs=1,
+        help='The factor to multiply by for plotting.')
   parser.add_argument('-sg','--supergrid', type=str, default=None,
         help='The supergrid to use for horizontal coordinates.')
   parser.add_argument('-e','--elevation', type=str, default=None,
@@ -158,7 +160,7 @@ def createUI(fileVarSlice, args):
         else: plt.draw()
   elif var1.rank>2:
     summarizeFile(rg); print
-    raise MyError( 'Variable name "%s" has resolved rank %i. Only 1D and 2D data can be plotted until you buy a holgraphic display.'%(variableName, var1.rank))
+    raise MyError( 'Variable name "%s" has resolved rank %i. Only 1D and 2D data can be plotted until you buy a holographic display.'%(variableName, var1.rank))
   else:
     render(var1, args)
     if not args.output: plt.show()
@@ -169,6 +171,8 @@ def render(var1, args, frame=0):
   # Optionally mask out a specific value
   if args.ignore:
     var1.data = np.ma.masked_array(var1.data, mask=[var1.data==args.ignore])
+  if args.scale:
+    var1.data = args.scale * var1.data
 
   if args.list: print 'createUI: Data =\n',var1.data
   if args.stats:
@@ -228,7 +232,8 @@ def render(var1, args, frame=0):
     if len(var1.label)>50: fontsize=10
     elif len(var1.label)>30: fontsize=12
     else: fontsize=14;
-    plt.title(var1.label,fontsize=fontsize)
+    if args.scale: plt.title(var1.label+' x%e'%(args.scale[0]),fontsize=fontsize)
+    else: plt.title(var1.label,fontsize=fontsize)
     plt.xlim(xLims); plt.ylim(yLims)
     plt.xlabel(xLabel) ; plt.ylabel(yLabel)
     makeGuessAboutCmap(clim=args.clim, colormap=args.colormap)
