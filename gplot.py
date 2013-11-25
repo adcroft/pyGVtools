@@ -110,31 +110,18 @@ def createUI(fileVarSlice, args):
   (fileName, variableName, sliceSpecs) = splitFileVarPos(fileVarSlice)
   if debug: print 'createUI: fileName=',fileName,'variableName=',variableName,'sliceSpecs=',sliceSpecs
 
-  # Open netcdf file
-  try: rg = MFDataset(fileName, 'r', aggdim='time')
-  except:
-    if debug: print 'Unable to open %s with MFDataset'%(fileName)
-    try: rg = Dataset(fileName, 'r')
-    except:
-      if os.path.isfile(fileName): raise MyError('There was a problem opening "'+fileName+'".')
-      raise MyError('Could not find file "'+fileName+'".')
+  # Read the meta-data for elevation, if asked for (needed for section plots)
+  if args.elevation:
+    (elevFileName, elevVariableName, elevSliceSpecs) = splitFileVarPos(args.elevation)
+    if elevSliceSpecs==None: elevSliceSpecs = sliceSpecs
+    if elevVariableName==None: elevVariableName='elevation'
+    if debug: print 'elevFileName=',elevFileName,'eName=',elevVariableName,'eSlice=',elevSliceSpecs
+    eRg, eVar = readVariableFromFile(elevFileName, elevVariableName, elevSliceSpecs,
+        alternativeNames=['elev', 'e', 'h'])
+  else: eVar = None
 
-  # If no variable is specified, summarize the file contents and exit
-  if not variableName:
-    print 'No variable name specified! Specify a varible from the following summary of "'\
-          +fileName+'":\n'
-    summarizeFile(rg)
-    exit(0)
-
-  # Check that the variable is in the file (allowing for case mismatch)
-  for v in rg.variables:
-    if variableName.lower() == v.lower(): variableName=v ; break
-  if not variableName in rg.variables:
-    print 'Known variables in file: '+''.join( (str(v)+', ' for v in rg.variables) )
-    raise MyError('Did not find "'+variableName+'" in file "'+fileName+'".')
-
-  # Obtain meta data along with 1D coordinates, labels and limits
-  var1 = NetcdfSlice(rg, variableName, sliceSpecs)
+  # Read the meta-data for the variable to be plotted
+  rg, var1 = readVariableFromFile(fileName, variableName, sliceSpecs)
 
   # Set figure shape
   if args.widescreen: aspect = 16./9.
@@ -162,11 +149,11 @@ def createUI(fileVarSlice, args):
     summarizeFile(rg); print
     raise MyError( 'Variable name "%s" has resolved rank %i. Only 1D and 2D data can be plotted until you buy a holographic display.'%(variableName, var1.rank))
   else:
-    render(var1, args)
+    render(var1, args, elevation=eVar)
     if not args.output: plt.show()
   
 
-def render(var1, args, frame=0):
+def render(var1, args, elevation=None, frame=0):
   var1.getData() # Actually read data from file
   # Optionally mask out a specific value
   if args.ignore:
@@ -206,11 +193,9 @@ def render(var1, args, frame=0):
       plt.ylabel(var1.label)
   elif var1.rank==2: # Pseudo color plot
     # Add an extra element to coordinate to force pcolormesh to draw all cells
-    coordData = []
-    coordData.append( extrapCoord( var1.dims[0].values ) )
-    coordData.append( extrapCoord( var1.dims[1].values ) )
     if var1.dims[1].isZaxis: # Happens for S(t,z)
-      xCoord = coordData[0]; yCoord = coordData[1]; zData = np.transpose(var1.data)
+      xCoord = extrapCoord( var1.dims[0].values); yCoord = extrapCoord( var1.dims[1].values)
+      zData = np.transpose(var1.data)
       xLabel = var1.dims[0].label; xLims = var1.dims[0].limits
       yLabel = var1.dims[1].label; yLims = var1.dims[1].limits
       yDim = var1.dims[1]
@@ -218,15 +203,21 @@ def render(var1, args, frame=0):
       xLabel = var1.dims[1].label; xLims = var1.dims[1].limits
       yLabel = var1.dims[0].label; yLims = var1.dims[0].limits
       if args.supergrid==None:
-        xCoord = coordData[1]; yCoord = coordData[0]
+        xCoord = extrapCoord( var1.dims[1].values); yCoord = extrapCoord( var1.dims[0].values)
       else:
         xCoord, xLims = readSGvar(args.supergrid, 'x', var1.dims)
         yCoord, yLims = readSGvar(args.supergrid, 'y', var1.dims)
         xLabel = u'Longitude (\u00B0E)' ; yLabel = u'Latitude (\u00B0N)'
       zData = var1.data
       yDim = var1.dims[0]
+    if yDim.isZaxis and not elevation==None: # Z on y axis ?
+      elevation.getData()
+      yCoord = elevation.data
+      yLims = (np.amin(yCoord[-1,:]), np.amax(yCoord[0,:]))
+      yCoord = extrapElevation( yCoord )
+      yLabel = 'Elevation (m)'
     plt.pcolormesh(xCoord,yCoord,zData)
-    if yDim.isZaxis: # Z on y axis ?
+    if yDim.isZaxis and elevation==None: # Z on y axis ?
       if yCoord[0]>yCoord[-1]: plt.gca().invert_yaxis(); yLims = reversed(yLims)
       if yDim.positiveDown: plt.gca().invert_yaxis(); yLims = reversed(yLims)
     if len(var1.label)>50: fontsize=10
@@ -301,6 +292,42 @@ def render(var1, args, frame=0):
       plt.gcf().canvas.mpl_connect('button_press_event', zoom2)
     plt.gca().format_coord = statusMesg
     plt.gcf().canvas.mpl_connect('key_press_event', keyPress)
+
+
+def readVariableFromFile(fileName, variableName, sliceSpecs, alternativeNames=None):
+  """
+  Open netCDF file, find and read the variable meta-information and return both
+  the netcdf object and variable object
+  """
+  # Open netcdf file
+  try: rg = MFDataset(fileName, 'r', aggdim='time')
+  except:
+    if debug: print 'Unable to open %s with MFDataset'%(fileName)
+    try: rg = Dataset(fileName, 'r')
+    except:
+      if os.path.isfile(fileName): raise MyError('There was a problem opening "'+fileName+'".')
+      raise MyError('Could not find file "'+fileName+'".')
+
+  # If no variable is specified, summarize the file contents and exit
+  if not variableName:
+    print 'No variable name specified! Specify a varible from the following summary of "'\
+          +fileName+'":\n'
+    summarizeFile(rg)
+    exit(0)
+
+  # Check that the variable is in the file (allowing for case mismatch)
+  for v in rg.variables:
+    if variableName.lower() == v.lower(): variableName=v ; break
+  if not variableName in rg.variables:
+    if alternativeNames==None:
+      print 'Known variables in file: '+''.join( (str(v)+', ' for v in rg.variables) )
+      raise MyError('Did not find "'+variableName+'" in file "'+fileName+'".')
+    else:
+      for v in alternativeNames:
+        if v in rg.variables: variableName=v ; break
+
+  # Obtain meta data along with 1D coordinates, labels and limits
+  return rg, NetcdfSlice(rg, variableName, sliceSpecs)
 
 
 class NetcdfDim:
@@ -655,6 +682,17 @@ def extrapCoord(xCell):
   newCoord = np.insert(newCoord, 0, 1.5*xCell[0] - 0.5*xCell[1])
   newCoord = np.append(newCoord, [1.5*xCell[-1] - 0.5*xCell[-2]])
   return newCoord
+
+
+def extrapElevation(elev):
+  """
+  Returns the (extrapolated/interpolated) positions of vertices, derived from cell center positions
+  """
+  elev[elev.mask] = 0
+  newElev = 0.5*( elev[:,0:-1] + elev[:,1:] )
+  newElev = np.insert(newElev, 0, 1.5*elev[:,0] - 0.5*elev[:,1], axis=1)
+  newElev = np.append(newElev, 1.5*elev[:,-1:] - 0.5*elev[:,-2:-1], axis=1)
+  return newElev
 
 
 def setFigureSize(aspect, verticalResolution):
