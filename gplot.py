@@ -75,6 +75,8 @@ def parseCommandLine():
         help='Mask out the specified value.')
   parser.add_argument('-s','--scale', type=float, nargs=1,
         help='The factor to multiply by for plotting.')
+  parser.add_argument('--log10', action='store_true',
+        help='Take the logarithm (base 10) of data before plotting.')
   parser.add_argument('-sg','--supergrid', type=str, default=None,
         help='The supergrid to use for horizontal coordinates.')
   parser.add_argument('-e','--elevation', type=str, default=None,
@@ -171,6 +173,8 @@ def render(var1, args, elevation=None, frame=0):
       dMax = np.max(var1.data[var1.data!=0])
       print 'Mininum=',dMin,'Maximum=',dMax,'(ignoring zeros)'
     else: print 'Mininum=',dMin,'Maximum=',dMax
+
+  if args.log10: var1.data = np.log10(var1.data)
 
   # Now plot
   if var1.rank==0:
