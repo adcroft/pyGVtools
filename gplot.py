@@ -73,6 +73,8 @@ def parseCommandLine():
         Values outside this range will be clipped to the minimum or maximum.''')
   parser.add_argument('-i','--ignore', type=float, nargs=1,
         help='Mask out the specified value.')
+  parser.add_argument('-IJ','--indices', action='store_true',
+        help='Use memory indices for coordinates.')
   parser.add_argument('-s','--scale', type=float, nargs=1,
         help='The factor to multiply by before plotting.')
   parser.add_argument('--offset', type=float, nargs=1,
@@ -121,11 +123,11 @@ def createUI(fileVarSlice, args):
     if elevVariableName==None: elevVariableName='elevation'
     if debug: print 'elevFileName=',elevFileName,'eName=',elevVariableName,'eSlice=',elevSliceSpecs
     eRg, eVar = readVariableFromFile(elevFileName, elevVariableName, elevSliceSpecs,
-        alternativeNames=['elev', 'e', 'h'])
+        ignoreCoords=args.indices, alternativeNames=['elev', 'e', 'h'])
   else: eVar = None
 
   # Read the meta-data for the variable to be plotted
-  rg, var1 = readVariableFromFile(fileName, variableName, sliceSpecs)
+  rg, var1 = readVariableFromFile(fileName, variableName, sliceSpecs, ignoreCoords=args.indices)
 
   # Set figure shape
   if args.widescreen: aspect = 16./9.
@@ -248,7 +250,7 @@ def render(var1, args, elevation=None, frame=0):
   if args.output:
     if args.animate:
       dt = time.time() - start_time
-      nf = var1.singleDims[0].lenInFile
+      nf = var1.singleDims[0].initialLen
       print 'Writing file "%s" (%i/%i)'%(args.output%(frame),frame,nf), \
             'Elapsed %.1fs, %.2f FPS, total %.1fs, remaining %.1fs'%(dt, frame/dt, 1.*nf/frame*dt, (1.*nf/frame-1.)*dt)
       try: plt.savefig(args.output%(frame),pad_inches=0.)
@@ -301,7 +303,7 @@ def render(var1, args, elevation=None, frame=0):
     plt.gcf().canvas.mpl_connect('key_press_event', keyPress)
 
 
-def readVariableFromFile(fileName, variableName, sliceSpecs, alternativeNames=None):
+def readVariableFromFile(fileName, variableName, sliceSpecs, ignoreCoords=False, alternativeNames=None):
   """
   Open netCDF file, find and read the variable meta-information and return both
   the netcdf object and variable object
@@ -334,14 +336,14 @@ def readVariableFromFile(fileName, variableName, sliceSpecs, alternativeNames=No
         if v in rg.variables: variableName=v ; break
 
   # Obtain meta data along with 1D coordinates, labels and limits
-  return rg, NetcdfSlice(rg, variableName, sliceSpecs)
+  return rg, NetcdfSlice(rg, variableName, sliceSpecs, ignoreCoords=ignoreCoords)
 
 
 class NetcdfDim:
   """
   Class for describing a dimension in a netcdf file
   """
-  def __init__(self, rootGroup, dimensionName, sliceSpec):
+  def __init__(self, rootGroup, dimensionName, sliceSpec, ignoreCoords=False):
     """
     Initialize a dimension by interpretting a sliceSpec
     """
@@ -370,7 +372,7 @@ class NetcdfDim:
     dimensionHandle = rootGroup.dimensions[dimensionName]
     self.isZaxis = False
     self.positiveDown = None
-    if dimensionName in rootGroup.variables:
+    if dimensionName in rootGroup.variables and not ignoreCoords:
       dimensionVariableHandle = rootGroup.variables[dimensionName]
       dimensionValues = None
       self.label, self.name, self.units = constructLabel(dimensionVariableHandle, dimensionName)
@@ -438,6 +440,7 @@ class NetcdfDim:
     self.dimensionVariableHandle = dimensionVariableHandle
     self.values = None
     self.isUnlimited = dimensionHandle.isunlimited()
+    self.initialLen = self.len
   def getData(self, forceRead=False):
     """
     Read dimension variable data if it has not been read
@@ -466,7 +469,7 @@ class NetcdfSlice:
   """
   Class for reading a slice of data from a netcdf using convenient index or coordinate ranges.
   """
-  def __init__(self, rootGroup, variableName, sliceSpecs):
+  def __init__(self, rootGroup, variableName, sliceSpecs, ignoreCoords=False):
     """
     Match each slice listed in sliceSpecs with a dimension of variableName in rootGroup and read
     on that corresponding subset of data
@@ -514,7 +517,7 @@ class NetcdfSlice:
     # Now interpret the slice specification for each dimensions
     dims=[]
     for d,s in zip(variableDims, sliceSpecs):
-      dims.append( NetcdfDim(rootGroup, d, s) )
+      dims.append( NetcdfDim(rootGroup, d, s, ignoreCoords=ignoreCoords) )
 
     # Group singleton dimensions and active dimensions
     activeDims = []; singleDims = []
