@@ -35,6 +35,8 @@ def m6section(x, z, q, representation='pcm'):
   if type( z ) == np.ma.core.MaskedArray: z[z.mask] = 0
   if type( q ) == np.ma.core.MaskedArray: qmin = np.amin(q); q[q.mask] = qmin
 
+  periodicDomain =  abs((x[-1]-x[0])-360. ) < 1e-6 # Detect if horizontal axis is a periodic domain
+
   if representation=='pcm':
     X = np.zeros((2*qni))
     X[::2] = x[:-1]
@@ -62,17 +64,17 @@ def m6section(x, z, q, representation='pcm'):
     X[::2] = x[:-1]
     X[1::2] = x[1:]
     # PLM reconstruction for Z
-    d2 = 0.*z ; d2[:,1:-1] = ( z[:,2:] - z[:,:-2] )/2. # Centered slope
-    s = 0.*z ; s[d2>0] = 1. ; s[d2<0] = -1. # Sign of centered slope
-    dz = z[:,1:] - z[:,0:-1] # Difference on edges
-    dzz = 0 *z; dzz[:,1:-1] = dz[:,1:] * dz[:,0:-1]
-    s[dzz<=0] = 0 # Flatten extrema
-    S = 0.*z
-    S[:,:-1] = np.minimum( np.abs(d2[:,:-1]), np.abs(dz) )
-    S[:,1:] = np.minimum( S[:,1:], np.abs(dz) )
+    dz = np.roll(z,-1,axis=1) - z # Right-sided difference
+    if not periodicDomain: dz[:,-1] = 0 # Non-periodic boundary
+    d2 = ( np.roll(z,-1,axis=1) - np.roll(z,1,axis=1) )/2. # Centered difference
+    d2 = ( dz + np.roll(dz,1,axis=1) )/2. # Centered difference
+    s = np.sign( d2 ) # Sign of centered slope
+    s[dz * np.roll(dz,1,axis=1) <= 0] = 0 # Flatten extrema
+    dz = np.abs(dz) # Only need magnitude from here on
+    S = s * np.minimum( np.abs(d2), np.minimum( dz, np.roll(dz,1,axis=1) ) ) # PLM slope
     Z = np.zeros((qnk+1,2*qni))
-    Z[:,::2] = z - S*s/2.
-    Z[:,1::2] = z + S*s/2.
+    Z[:,::2] = z - S/2.
+    Z[:,1::2] = z + S/2.
     Q = np.zeros((qnk,2*qni-1))
     Q[:,::2] = q
     Q[:,1::2] = ( q[:,:-1] + q[:,1:] )/2.
@@ -85,7 +87,7 @@ import matplotlib.pyplot as plt
 
 # Test data
 x=np.arange(5)
-z=np.array([[0,0.2,0,-.1],[1,1.5,.5,.4],[2,2,1.5,2],[3,2.3,1.5,2.1]])*-1
+z=np.array([[0,0.2,0.3,-.1],[1,1.5,.7,.4],[2,2,1.5,2],[3,2.3,1.5,2.1]])*-1
 q=np.matlib.rand(3,4)
 print 'x=',x
 print 'z=',z
