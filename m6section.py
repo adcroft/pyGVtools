@@ -33,7 +33,7 @@ def m6section(x, z, q, representation='pcm'):
   if xni!=qni+1: raise Exception('The length of x must 1 longer than the last dimension of q')
 
   if type( z ) == np.ma.core.MaskedArray: z[z.mask] = 0
-  if type( q ) == np.ma.core.MaskedArray: q[q.mask] = 0
+  if type( q ) == np.ma.core.MaskedArray: qmin = np.amin(q); q[q.mask] = qmin
 
   if representation=='pcm':
     X = np.zeros((2*qni))
