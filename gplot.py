@@ -67,15 +67,12 @@ def parseCommandLine():
       Otherwise, the 'spectral' colormap is used.
       See http://matplotlib.org/examples/color/colormaps_reference.html for a list of colormaps.
       ''')
-  parser.add_argument('--clim', type=float, nargs=2,
-      metavar=('MIN','MAX'),
+  parser.add_argument('--clim', type=float, nargs=2, metavar=('MIN','MAX'),
       help='''Specify the minimum/maximum color range.
       Values outside this range will be clipped to the minimum or maximum.''')
-  parser.add_argument('-i','--ignore', type=float, nargs=1,
+  parser.add_argument('--ignore', type=float, nargs=1,
       help='Mask out the specified value.')
-  parser.add_argument('-IJ','--indices', action='store_true',
-      help='Use memory indices for coordinates.')
-  parser.add_argument('-s','--scale', type=float, nargs=1,
+  parser.add_argument('--scale', type=float, nargs=1,
       help='The factor to multiply by before plotting.')
   parser.add_argument('--offset', type=float, nargs=1,
       help='An offset to add before plotting.')
@@ -83,6 +80,8 @@ def parseCommandLine():
       help='Take the logarithm (base 10) of data before plotting.')
   parser.add_argument('-sg','--supergrid', type=str, default=None,
       help='The supergrid to use for horizontal coordinates.')
+  parser.add_argument('-IJ','--indices', action='store_true',
+      help='Use memory indices for coordinates.')
   parser.add_argument('-e','--elevation', type=str, default=None,
       help='The file[,variable] from which to read elevation for vertical section plots.')
   parser.add_argument('--animate', action='store_true',
@@ -91,8 +90,7 @@ def parseCommandLine():
       help='Name of image file to create.')
   parser.add_argument('-r','--resolution', type=int, default=600,
       help='Vertial resolution (in pixels) for image, e.g. 720 would give 720p video resolution. Default is 600 pixels.')
-  parser.add_argument('-ar','--aspect', type=float, nargs=2, default=[16., 9.],
-      metavar=('WIDTH','HEIGHT'),
+  parser.add_argument('-ar','--aspect', type=float, nargs=2, default=[16., 9.], metavar=('WIDTH','HEIGHT'),
       help='An aspect ratio for image such as 16 9 (widescreen) or 4 3. Default is 16 9.')
   parser.add_argument('--stats', action='store_true',
       help='Print the statistics of viewed data.')
@@ -131,7 +129,6 @@ def createUI(fileVarSlice, args):
   rg, var1 = readVariableFromFile(fileName, variableName, sliceSpecs, ignoreCoords=args.indices)
 
   # Set figure shape
-  print args.aspect
   setFigureSize(args.aspect[0]/args.aspect[1], args.resolution)
 
   # Based on rank, either create interactive plot, animate or intercept requests for rank >2
