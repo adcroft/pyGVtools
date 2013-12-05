@@ -42,63 +42,64 @@ def parseCommandLine():
 
   # Arguments
   parser = argparse.ArgumentParser(description=
-       '''
-       gplot.py can plot 1- and 2-dimensional data, which itself can be extracted from
-       multiple-dimensional data.
-       ''',
-       epilog='Written by A.Adcroft, 2013.')
+      '''
+      gplot.py can plot 1- and 2-dimensional data, which itself can be extracted from
+      multiple-dimensional data.
+      ''',
+      epilog='Written by A.Adcroft, 2013.')
   parser.add_argument('file_var_slice', type=str,
-         metavar='FILE[,VARIABLE[,SLICE1[,SLICE2[...]]]]',
-	help='''File, variable and slice specification. Valid forms include filename.nc ;
-        filename.nc,variable ; filename.nc,variable,slice ; filename.nc,variable,slice1,slice2 ; etc.
-        Each slice takes the form of single VALUE or [START]:[STOP] range.
-        When VALUE, START or STOP are positive integers, they refer to indices (START at 1).
-        In the range form (with a colon), a missing START or STOP will indicate the beginning or
-        end of the dimension.
-        An inverted range (START>STOP) indicates to wrap around a periodic dimension. 
-        Any of VALUE, START or STOP can take the form '=POS' or '=POS1:POS2' in which case POS, POS1 and POS2 
-        are coordinate values or ranges.
-        ''')
+      metavar='FILE[,VARIABLE[,SLICE1[,SLICE2[...]]]]',
+      help='''File, variable and slice specification. Valid forms include filename.nc ;
+      filename.nc,variable ; filename.nc,variable,slice ; filename.nc,variable,slice1,slice2 ; etc.
+      Each slice takes the form of single VALUE or [START]:[STOP] range.
+      When VALUE, START or STOP are positive integers, they refer to indices (START at 1).
+      In the range form (with a colon), a missing START or STOP will indicate the beginning or
+      end of the dimension.
+      An inverted range (START>STOP) indicates to wrap around a periodic dimension. 
+      Any of VALUE, START or STOP can take the form '=POS' or '=POS1:POS2' in which case POS, POS1 and POS2 
+      are coordinate values or ranges.
+      ''')
   parser.add_argument('-cm','--colormap', type=str, default='',
-        help=''' Specify the colormap. The default colormap is determined by the data.
-        For single-signed data with some values near zero, the 'hot' colormap is used.
-        For multi-signed data with near symmetric ranges, the 'seismic' colormap is used, and the color
-        range automatically centered on zero.
-        Otherwise, the 'spectral' colormap is used.
-        See http://matplotlib.org/examples/color/colormaps_reference.html for a list of colormaps.
-        ''')
+      help=''' Specify the colormap. The default colormap is determined by the data.
+      For single-signed data with some values near zero, the 'hot' colormap is used.
+      For multi-signed data with near symmetric ranges, the 'seismic' colormap is used, and the color
+      range automatically centered on zero.
+      Otherwise, the 'spectral' colormap is used.
+      See http://matplotlib.org/examples/color/colormaps_reference.html for a list of colormaps.
+      ''')
   parser.add_argument('--clim', type=float, nargs=2,
-        metavar=('MIN','MAX'),
-        help='''Specify the minimum/maximum color range.
-        Values outside this range will be clipped to the minimum or maximum.''')
+      metavar=('MIN','MAX'),
+      help='''Specify the minimum/maximum color range.
+      Values outside this range will be clipped to the minimum or maximum.''')
   parser.add_argument('-i','--ignore', type=float, nargs=1,
-        help='Mask out the specified value.')
+      help='Mask out the specified value.')
   parser.add_argument('-IJ','--indices', action='store_true',
-        help='Use memory indices for coordinates.')
+      help='Use memory indices for coordinates.')
   parser.add_argument('-s','--scale', type=float, nargs=1,
-        help='The factor to multiply by before plotting.')
+      help='The factor to multiply by before plotting.')
   parser.add_argument('--offset', type=float, nargs=1,
-        help='An offset to add before plotting.')
+      help='An offset to add before plotting.')
   parser.add_argument('--log10', action='store_true',
-        help='Take the logarithm (base 10) of data before plotting.')
+      help='Take the logarithm (base 10) of data before plotting.')
   parser.add_argument('-sg','--supergrid', type=str, default=None,
-        help='The supergrid to use for horizontal coordinates.')
+      help='The supergrid to use for horizontal coordinates.')
   parser.add_argument('-e','--elevation', type=str, default=None,
-        help='The file(,variable] from which to read elevation for vertical section plots.')
+      help='The file[,variable] from which to read elevation for vertical section plots.')
   parser.add_argument('--animate', action='store_true',
-        help='Animate over the unlimited dimension.')
+      help='Animate over the unlimited dimension.')
   parser.add_argument('-o','--output', type=str, default='',
-        help='Name of image file to create.')
+      help='Name of image file to create.')
   parser.add_argument('-r','--resolution', type=int, default=600,
-        help='Vertial resolution for image in video size notation, e.g. 720 means 720p.')
-  parser.add_argument('-w','--widescreen', action='store_true',
-        help='Use a 16:9 aspect ratio instead of 4:3.')
+      help='Vertial resolution (in pixels) for image, e.g. 720 would give 720p video resolution. Default is 600 pixels.')
+  parser.add_argument('-ar','--aspect', type=float, nargs=2, default=[16., 9.],
+      metavar=('WIDTH','HEIGHT'),
+      help='An aspect ratio for image such as 16 9 (widescreen) or 4 3. Default is 16 9.')
   parser.add_argument('--stats', action='store_true',
-        help='Print the statistics of viewed data.')
+      help='Print the statistics of viewed data.')
   parser.add_argument('--list', action='store_true',
-        help='Print selected data to terminal.')
+      help='Print selected data to terminal.')
   parser.add_argument('-d','--debug', action='store_true',
-        help='Turn on debugging information.')
+      help='Turn on debugging information.')
   optCmdLineArgs = parser.parse_args()
 
   if optCmdLineArgs.debug: debug = True
@@ -130,9 +131,8 @@ def createUI(fileVarSlice, args):
   rg, var1 = readVariableFromFile(fileName, variableName, sliceSpecs, ignoreCoords=args.indices)
 
   # Set figure shape
-  if args.widescreen: aspect = 16./9.
-  else: aspect = 4./3.
-  setFigureSize(aspect, args.resolution)
+  print args.aspect
+  setFigureSize(args.aspect[0]/args.aspect[1], args.resolution)
 
   # Based on rank, either create interactive plot, animate or intercept requests for rank >2
   if var1.rank==3 and args.animate and not var1.unlimitedDim==None:
