@@ -100,7 +100,7 @@ def parseCommandLine():
       help='Turn on debugging information.')
   optCmdLineArgs = parser.parse_args()
 
-  if optCmdLineArgs.debug: debug = True
+  if optCmdLineArgs.debug: enableDebugging()
 
   createUI(optCmdLineArgs.file_var_slice, optCmdLineArgs)
 
@@ -828,6 +828,15 @@ def m6section(x, z, q, representation='pcm'):
   else: raise Exception('Unknown representation!')
 
   return X, Z, Q
+
+
+def enableDebugging(newValue=True):
+  """
+  Sets the global parameter "debug" to control debugging information. This function is needed for
+  controlling debugging of routine imported from gplot.py in other scripts.
+  """
+  global debug
+  debug = newValue
 
 
 # Invoke parseCommandLine(), the top-level prodedure
