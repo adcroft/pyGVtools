@@ -633,6 +633,8 @@ def makeGuessAboutCmap(clim=None, colormap=None):
     elif vmin*vmax>=0 and vmin<0 and 3*vmax>vmin: plt.set_cmap('hot_r') # Single signed -ve data
     elif abs((vmax+vmin)/(vmax-vmin))<.01: plt.set_cmap('seismic') # Multi-signed symmetric data
     else: plt.set_cmap('spectral')
+  landColor=[.5,.5,.5]
+  plt.gca().set_axis_bgcolor(landColor)
 
 
 # Generate a succinct summary of the netcdf file contents
