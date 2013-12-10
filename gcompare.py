@@ -74,7 +74,11 @@ def parseCommandLine():
       help='''Specify the minimum/maximum color range for the difference plot.
       Values outside this range will be clipped to the minimum or maximum.''')
   parser.add_argument('--ignore', type=float, nargs=1,
-      help='Mask out the specified value.')
+      help='Mask out the values equal to IGNORE.')
+  parser.add_argument('--ignorelt', type=float, nargs=1,
+      help='Mask out values less than IGNORELT.')
+  parser.add_argument('--ignoregt', type=float, nargs=1,
+      help='Mask out values less than IGNOREGT.')
   parser.add_argument('--scale', type=float, nargs=1,
       help='The factor to multiply by before plotting.')
   parser.add_argument('--offset', type=float, nargs=1,
@@ -177,7 +181,7 @@ def createUI(fileVarSlice1, fileVarSlice2, args):
     render(var2, args, elevation=eVar)
     plt.title('B:  %s'%fileName2)
     plt.subplot(3,1,3)
-    varDiff = copy.copy(var2)
+    varDiff = copy.copy(var1)
     varDiff.data = var1.data - var2.data
     render(varDiff, args, elevation=eVar, skipXlabel=False, ignoreClim=True)
     plt.title('A - B')
@@ -189,6 +193,10 @@ def render(var1, args, elevation=None, frame=0, skipXlabel=True, skipTitle=True,
   # Optionally mask out a specific value
   if args.ignore:
     var1.data = np.ma.masked_array(var1.data, mask=[var1.data==args.ignore])
+  if args.ignorelt:
+    var1.data = np.ma.masked_array(var1.data, mask=[var1.data<=args.ignorelt])
+  if args.ignoregt:
+    var1.data = np.ma.masked_array(var1.data, mask=[var1.data>=args.ignoregt])
   if args.scale:
     var1.data = args.scale * var1.data
 
@@ -274,7 +282,7 @@ def render(var1, args, elevation=None, frame=0, skipXlabel=True, skipTitle=True,
       if len(text): text = text+'   '
       text = text + d.name + ' = ' + str(d.values[0])
       if d.units: text = text + ' (' + d.units + ')'
-    axis.annotate(text, xy=(0.005,.995), xycoords='figure fraction', verticalalignment='top', fontsize=8)
+    if not skipXlabel: axis.annotate(text, xy=(0.005,.995), xycoords='figure fraction', verticalalignment='top', fontsize=8)
   if args.output:
     if args.animate:
       dt = time.time() - start_time

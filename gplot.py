@@ -71,7 +71,11 @@ def parseCommandLine():
       help='''Specify the minimum/maximum color range.
       Values outside this range will be clipped to the minimum or maximum.''')
   parser.add_argument('--ignore', type=float, nargs=1,
-      help='Mask out the specified value.')
+      help='Mask out the values equal to IGNORE.')
+  parser.add_argument('--ignorelt', type=float, nargs=1,
+      help='Mask out values less than IGNORELT.')
+  parser.add_argument('--ignoregt', type=float, nargs=1,
+      help='Mask out values less than IGNOREGT.')
   parser.add_argument('--scale', type=float, nargs=1,
       help='The factor to multiply by before plotting.')
   parser.add_argument('--offset', type=float, nargs=1,
@@ -117,7 +121,8 @@ def createUI(fileVarSlice, args):
 
   # Read the meta-data for elevation, if asked for (needed for section plots)
   if args.elevation:
-    (elevFileName, elevVariableName, elevSliceSpecs) = splitFileVarPos(args.elevation)
+    if args.elevation == 'same': (elevFileName, elevVariableName, elevSliceSpecs) = splitFileVarPos(fileName)
+    else: (elevFileName, elevVariableName, elevSliceSpecs) = splitFileVarPos(args.elevation)
     if elevSliceSpecs==None: elevSliceSpecs = sliceSpecs
     if elevVariableName==None: elevVariableName='elevation'
     if debug: print 'elevFileName=',elevFileName,'eName=',elevVariableName,'eSlice=',elevSliceSpecs
@@ -161,6 +166,10 @@ def render(var1, args, elevation=None, frame=0):
   # Optionally mask out a specific value
   if args.ignore:
     var1.data = np.ma.masked_array(var1.data, mask=[var1.data==args.ignore])
+  if args.ignorelt:
+    var1.data = np.ma.masked_array(var1.data, mask=[var1.data<=args.ignorelt])
+  if args.ignoregt:
+    var1.data = np.ma.masked_array(var1.data, mask=[var1.data>=args.ignoregt])
   if args.scale:
     var1.data = args.scale * var1.data
 
