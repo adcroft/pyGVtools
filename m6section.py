@@ -29,7 +29,7 @@ def m6section(x, z, q, representation='pcm'):
   znk, zni = z.shape
   xni = x.size
   if zni!=qni: raise Exception('The last dimension of z and q must be equal in length')
-  if znk!=qnk+1: raise Exception('The first dimension of z must 1 longer than that of q')
+  if znk!=qnk+1: raise Exception('The first dimension of z must be 1 longer than that of q. q has %i levels'%qnk)
   if xni!=qni+1: raise Exception('The length of x must 1 longer than the last dimension of q')
 
   if type( z ) == np.ma.core.MaskedArray: z[z.mask] = 0
