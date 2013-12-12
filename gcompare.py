@@ -183,9 +183,9 @@ def createUI(fileVarSlice1, fileVarSlice2, args):
     plt.subplot(3,1,3)
     varDiff = copy.copy(var1)
     varDiff.data = var1.data - var2.data
-    render(varDiff, args, elevation=eVar, skipXlabel=False, ignoreClim=True)
-    plt.title('A - B')
     plt.suptitle(var1.label, fontsize=18)
+    plt.title('A - B')
+    render(varDiff, args, elevation=eVar, skipXlabel=False, ignoreClim=True)
     if not args.output: plt.show()
   
 
