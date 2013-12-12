@@ -147,9 +147,9 @@ def createUI(fileVarSlice, args):
       var1.singleDims[0].getData(forceRead=True)
       if n>0:
         if args.output:
-          plt.close(); setFigureSize(aspect, args.resolution)
+          plt.close(); setFigureSize(args.aspect[0]/args.aspect[1], args.resolution)
         else: plt.clf()
-      render(var1, args, frame=n+1)
+      render(var1, args, frame=n+1, elevation=eVar)
       if not args.output:
         if n==n0: plt.show(block=False)
         else: plt.draw()
@@ -383,7 +383,8 @@ class NetcdfDim:
       dimensionVariableHandle = rootGroup.variables[dimensionName]
       dimensionValues = None
       self.label, self.name, self.units = constructLabel(dimensionVariableHandle, dimensionName)
-      if isAttrEqualTo(dimensionVariableHandle,'cartesian_axis','z'):
+      if isAttrEqualTo(dimensionVariableHandle,'cartesian_axis','z') or \
+        dimensionName.lower() in ('depth','z'):
         self.isZaxis = True
         if isAttrEqualTo(dimensionVariableHandle,'positive','down'): self.positiveDown = True
         else: self.positiveDown = False
