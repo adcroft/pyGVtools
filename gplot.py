@@ -28,7 +28,7 @@ except: raise MyError('Unable to import matplotlib.pyplot module. Check your PYT
 import warnings
 
 # Import stand alone (static) functions
-from m6toolbox import *
+import m6toolbox
 
 debug = False # Global debugging
 warnings.simplefilter('error', UserWarning)
@@ -231,7 +231,7 @@ def render(var1, args, elevation=None, frame=0):
     if yDim.isZaxis and not elevation==None: # Z on y axis ?
       elevation.getData()
       #yCoord = elevation.data
-      xCoord, yCoord, zData = section2quadmesh(xCoord, elevation.data, zData, representation='pcm')
+      xCoord, yCoord, zData = m6toolbox.section2quadmesh(xCoord, elevation.data, zData, representation='pcm')
       yLims = (np.amin(yCoord[-1,:]), np.amax(yCoord[0,:]))
       #yCoord = extrapElevation( yCoord )
       yLabel = 'Elevation (m)'
