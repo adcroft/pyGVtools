@@ -1,12 +1,13 @@
 import numpy as np
 import numpy.matlib
 
-def m6section(x, z, q, representation='pcm'):
+def section2quadmesh(x, z, q, representation='pcm'):
   """
   Creates the appropriate quadmesh coordinates to plot a scalar q(1:nk,1:ni) at
-  horizontal positions x(1:ni+1) and between interfaces at z(nk+1,ni).
+  horizontal positions x(1:ni+1) and between interfaces at z(nk+1,ni), using
+  various representations of the topography.
 
-  Returns X(2*ni+1, Z(nk+1,2*ni+1) and Q(nk,2*ni) to be passed to pcolormesh.
+  Returns X(2*ni+1), Z(nk+1,2*ni+1) and Q(nk,2*ni) to be passed to pcolormesh.
 
   TBD: Optionally, x can be dimensioned as x(ni) in which case it will be extraplated as if it had 
   had dimensions x(ni+1).
@@ -96,21 +97,21 @@ if __name__ == '__main__':
   print 'z=',z
   print 'q=',q
 
-  X, Z, Q = m6section(x, z, q)
+  X, Z, Q = section2quadmesh(x, z, q)
   print 'X=',X
   print 'Z=',Z
   print 'Q=',Q
   plt.subplot(3,1,1)
   plt.pcolormesh(X, Z, Q)
 
-  X, Z, Q = m6section(x, z, q, representation='linear')
+  X, Z, Q = section2quadmesh(x, z, q, representation='linear')
   print 'X=',X
   print 'Z=',Z
   print 'Q=',Q
   plt.subplot(3,1,2)
   plt.pcolormesh(X, Z, Q)
 
-  X, Z, Q = m6section(x, z, q, representation='plm')
+  X, Z, Q = section2quadmesh(x, z, q, representation='plm')
   print 'X=',X
   print 'Z=',Z
   print 'Q=',Q

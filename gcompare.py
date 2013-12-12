@@ -255,7 +255,7 @@ def render(var1, args, elevation=None, frame=0, skipXlabel=True, skipTitle=True,
     if yDim.isZaxis and not elevation==None: # Z on y axis ?
       elevation.getData()
       #yCoord = elevation.data
-      xCoord, yCoord, zData = m6section(xCoord, elevation.data, zData, representation='pcm')
+      xCoord, yCoord, zData = section2quadmesh(xCoord, elevation.data, zData, representation='pcm')
       yLims = (np.amin(yCoord[-1,:]), np.amax(yCoord[0,:]))
       #yCoord = extrapElevation( yCoord )
       yLabel = 'Elevation (m)'
