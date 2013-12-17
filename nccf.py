@@ -27,6 +27,15 @@ def dump(fileName):
   rg = openNetCDFfileForReading(fileName)
   dims = rg.dimensions; vars = rg.variables
   print 'Summary of %s:'%fileName
+  def allAttributes(obj):
+    attributes = {}
+    for a in obj.ncattrs():
+      o = obj.getncattr(a)
+      if isinstance(o,basestring): o = o.encode('ascii','ignore')
+      attributes[a.encode('ascii','ignore')] = o
+    if len(attributes): return attributes
+    return None
+  print 'Attributes:',allAttributes(rg)
   print 'Dimensions: -------------------------------------'
   for dim in dims:
     oString = ' '+dim+' ['+str(len( dims[dim] ))+']'
@@ -39,7 +48,7 @@ def dump(fileName):
     print oString
   print 'Variables: --------------------------------------'
   for var in vars:
-    if var in dims: continue # skip listing dimensions as variables
+    #if var in dims: continue # skip listing dimensions as variables
     oString = ' '+var+' [ '; dString = ''
     obj = vars[var]; varDims = obj.dimensions
     for dim in varDims:
@@ -49,24 +58,25 @@ def dump(fileName):
     if 'long_name' in obj.ncattrs(): oString += ' "'+obj.long_name+'"'
     if 'units' in obj.ncattrs(): oString += ' ('+obj.units+')'
     print oString
+    print '  attributes:',allAttributes(obj)
   rg.close()
 
 
-def readVariableFromNetCDFfile(fileName, variableName, *args):
+def readVar(fileName, variableName, *args):
   """
   Reads a variable from a netCDF file.
 
   Optional arguments are ranges for each dimension.
   Missing ranges fetch the entire dimensions.
 
-  Examples:
-  >>> T,_,_ = readVariableFromNetCDFfile('test.nc','xyz')
-  >>> T,dims,atts = readVariableFromNetCDFfile('test.nc','xyz',rang(1,4),3)
-
   Returns: data, dimensions, attributes.
     data       will be a numpy masked array
     dimensions will be a list of numpy 1D vectors
     attributes will be a dictionary
+
+  Examples:
+  >>> T,_,_ = nccf.readVar('test.nc','xyz')
+  >>> T,dims,atts = nccf.readVar('test.nc','xyz',rang(1,4),3)
   """
 
   rg = openNetCDFfileForReading(fileName)
@@ -95,14 +105,14 @@ def readVariableFromNetCDFfile(fileName, variableName, *args):
 
   attributes = {}
   for a in vh.ncattrs():
-    attributes[a] = vh.getncattr(a)
+    attributes[a.encode('ascii','ignore')] = vh.getncattr(a)
 
   data = vh[args]
   rg.close()
   return data, dimensions, attributes
 
 
-def writeVariableToNetCDFfile(fileName, variableName=None, variable=None, dimensions=None, attributes=None, dataType='f8'):
+def write(fileName, variableName=None, variable=None, dimensions=None, attributes=None, dataType='f8', fillValue=None, clobber=False):
   """
   Writes a variable to a netCDF file.
 
@@ -112,12 +122,17 @@ def writeVariableToNetCDFfile(fileName, variableName=None, variable=None, dimens
   variable     a numpy masked array
   dimensions   a dictionary of dimension names and 1D dimension data 
                or a list of names, or a list of 1D dimension data
+  attributes   a dictionary of attributes
+
+  Optional arguments:
+  dataType     data type for variable (default 'f8')
+  fillValue    the fill value (default None)
+
+  Examples:
+  >>> nccf.write('test.nc','Temp',T)
   """
 
-  print 'variableName=',variableName
-  print 'variable=',type(variable)
-  print 'dimensions=',type(dimensions)
-  print 'attributes=',type(attributes)
+  if clobber: os.remove(fileName)
 
   if os.path.isfile(fileName): rg = nc4.Dataset(fileName,'a')
   else: rg = nc4.Dataset(fileName,'w')
@@ -132,7 +147,8 @@ def writeVariableToNetCDFfile(fileName, variableName=None, variable=None, dimens
     return name
 
   def createDimDataIfMissing(rg, name, data, dataType):
-    createDimIfMissing(rg, name, len(data))
+    if data==None: createDimIfMissing(rg, name, None)
+    else: createDimIfMissing(rg, name, len(data))
     if name in rg.variables:
       if any(rg.variables[name][:]!=data):
         raise Exception('Dimension data "%s" does not match provided data'%name)
@@ -176,26 +192,28 @@ def writeVariableToNetCDFfile(fileName, variableName=None, variable=None, dimens
           dName = matchingDimsByData(rg, dim)
           if dName==None: dName = 'dim%i'%i
           variableDimensions.append( createDimDataIfMissing(rg, dName, dim, dataType) )
-        else:
-          print '******* Not sure what to do with',dim
-          print 'type=',type(dim)
+        elif len(numpy.atleast_1d(dim))==1: print 'Ignoring singleton dimension with value',dim
+        else: print '******* Not sure what to do with dimension =',dim
   elif isinstance(dimensions, dict):
     # Create dimensions from dictionary provided
     variableDimensions = []
     for n in dimensions:
       variableDimensions.append( createDimDataIfMissing(rg, n, dimensions[n], dataType) )
   else: raise Exception('Not sure what to do with the dimensions argument!')
-  print 'variableDimensions=',variableDimensions
 
   if not variableName==None:
     if variableName in rg.variables: vh = rg.variables[variableName]
-    elif not variableDimensions==None: vh = rg.createVariable(variableName, dataType, variableDimensions, fill_value=None)
+    elif not variableDimensions==None: vh = rg.createVariable(variableName, dataType, variableDimensions, fill_value=fillValue)
   else: vh = None
 
-  if not attributes==None and not vh==None:
-    for a in attributes:
-      if not a in ['_FillValue']:
-        vh.setncattr(a,attributes[a])
+  if not attributes==None:
+    if not vh==None:
+      for a in attributes:
+        if not a in ['_FillValue']:
+          vh.setncattr(a,attributes[a])
+    else:
+      for a in attributes:
+        rg.setncattr(a,attributes[a])
 
   if not variable==None and not vh==None: vh[:] = variable
   rg.close
@@ -205,33 +223,46 @@ def testNCCF():
   """
   A simple test of writing a netcdf file
   """
+  import nccf
 
   testFile = 'baseline.1900-1909.salt_temp_e.nc'
   dump(testFile)
   print '======= dump finished' ; print
 
-  T, d, a = readVariableFromNetCDFfile(testFile,'Temp',0,4,range(580,593),range(40,50))
+  T, d, a = nccf.readVar(testFile,'Temp',0,4,range(580,593),range(40,50))
   print 'T=',T
   print 'd=',d
   print 'a=',a
   print '======= read T finished' ; print
 
+  os.remove('q.nc')
   print 'Testing creation with dictionary dimensions'
-  writeVariableToNetCDFfile('q.nc', 'w1', -T, dimensions={'y':d[-2],'x':d[-1]})
+  nccf.write('q.nc', 'w1', -T, dimensions={'y':d[-2],'x':d[-1]})
   dump('q.nc')
   print 'Testing creation with just data dimensions'
-  writeVariableToNetCDFfile('q.nc', 'w1', T, dimensions=d)
+  nccf.write('q.nc', 'w1', T, dimensions=d)
   dump('q.nc')
   print 'Testing creation with just named dimensions'
-  writeVariableToNetCDFfile('q.nc', 'w1', -T, dimensions=['y','x'])
+  nccf.write('q.nc', 'w1', -T, dimensions=['y','x'])
   dump('q.nc')
   print 'Testing creation with no dimensions'
-  writeVariableToNetCDFfile('q.nc', 'w1', T)
+  nccf.write('q.nc', 'w1', T)
   dump('q.nc')
   print 'Testing creation with just attributes'
-  writeVariableToNetCDFfile('q.nc', 'w1', attributes=a)
+  nccf.write('q.nc', 'w1', attributes=a)
   dump('q.nc')
   print '======= write T finished' ; print
+  print 'Testing creation with global attributes and clobber'
+  nccf.write('q.nc', attributes={'testAtt':-1.23, 'stringAtt':'qwerty'}, clobber=True)
+  dump('q.nc')
+  print '======= clobber finished' ; print
+  print 'Testing creating unlimited dimension with attributes'
+  nccf.write('q.nc', 'time', dimensions={'time':None}, attributes={'axis':'T', 'long_name':'Time in seconds', 'units':'seconds'})
+  nccf.write('q.nc', 'it', d[-1], dimensions=['it'])
+  nccf.write('q.nc', 'jt', d[-2], dimensions=['jt'])
+  nccf.write('q.nc', 'Temp', T, dimensions=['jt','it'])
+  dump('q.nc')
+  print '======= unlimited finished' ; print
 
 
 def enableDebugging(newValue=True):
