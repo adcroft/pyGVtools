@@ -85,9 +85,7 @@ def readVariableFromNetCDFfile(fileName, variableName, *args):
   vh = rg.variables[variableName] # Handle for variable
 
   dimensions = []
-  print args
   for n, d in enumerate(vh.dimensions):
-    print 'n,d=',n,d
     if n < len(args):
       if d in rg.variables: dimensions.append( rg.variables[d][args[n]] )
       else: dimensions.append( args[n] )
@@ -191,13 +189,13 @@ def writeVariableToNetCDFfile(fileName, variableName=None, variable=None, dimens
 
   if not variableName==None:
     if variableName in rg.variables: vh = rg.variables[variableName]
-    elif not variableDimensions==None: vh = rg.createVariable(variableName, dataType, variableDimensions)
+    elif not variableDimensions==None: vh = rg.createVariable(variableName, dataType, variableDimensions, fill_value=None)
   else: vh = None
 
-  print 'type(a)=',type(attributes)
   if not attributes==None and not vh==None:
-    print vh
-    vh.setncatts(attributes)
+    for a in attributes:
+      if not a in ['_FillValue']:
+        vh.setncattr(a,attributes[a])
 
   if not variable==None and not vh==None: vh[:] = variable
   rg.close
@@ -212,7 +210,7 @@ def testNCCF():
   dump(testFile)
   print '======= dump finished' ; print
 
-  T, d, a = readVariableFromNetCDFfile(testFile,'Temp',0,4,range(200,213),range(40,50))
+  T, d, a = readVariableFromNetCDFfile(testFile,'Temp',0,4,range(580,593),range(40,50))
   print 'T=',T
   print 'd=',d
   print 'a=',a
