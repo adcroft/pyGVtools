@@ -112,7 +112,7 @@ def readVar(fileName, variableName, *args):
   return data, dimensions, attributes
 
 
-def write(fileName, variableName=None, variable=None, dimensions=None, attributes=None, dataType='f8', fillValue=None, clobber=False):
+def write(fileName, variableName=None, variable=None, dimensions=None, attributes=None, dataType='f8', fillValue=None, clobber=False, record=None):
   """
   Writes a variable to a netCDF file.
 
@@ -127,6 +127,8 @@ def write(fileName, variableName=None, variable=None, dimensions=None, attribute
   Optional arguments:
   dataType     data type for variable (default 'f8')
   fillValue    the fill value (default None)
+  clobber      if True will remove file before writing
+  record       if present, specifies record number of unlimited dimension to write
 
   Examples:
   >>> nccf.write('test.nc','Temp',T)
@@ -139,8 +141,9 @@ def write(fileName, variableName=None, variable=None, dimensions=None, attribute
 
   def createDimIfMissing(rg, name, size):
     if name in rg.dimensions:
-      if not len(rg.dimensions[name])==size:
-        raise Exception('Dimension "%s" has size %i in file and differs from provided size %i'
+      if not rg.dimensions[name].isunlimited():
+        if not len(rg.dimensions[name])==size:
+          raise Exception('Dimension "%s" has size %i in file and differs from provided size %i'
                  %(name, len(rg.dimensions[name]), size))
     else:
       rg.createDimension(name, size)
@@ -167,6 +170,11 @@ def write(fileName, variableName=None, variable=None, dimensions=None, attribute
     elif len(matchingDims)==0: return None
     return matchingDims[0]
 
+  def dimIsUnlimited(rg, dim):
+    if dim in rg.dimensions:
+      if rg.dimensions[dim].isunlimited(): return True
+    return False
+
   variableDimensions = None
   if dimensions==None:
     if not variable==None:
@@ -185,6 +193,8 @@ def write(fileName, variableName=None, variable=None, dimensions=None, attribute
     if not variable==None:
       # Create or match dimensions based on names or vectors 
       variableDimensions = []
+      if isinstance(dimensions[0], basestring) and dimIsUnlimited(rg, dimensions[0]):
+        variable = variable.reshape((1,)+variable.shape)
       for i,dim in enumerate(dimensions):
         if isinstance(dim, basestring):
           variableDimensions.append( createDimIfMissing(rg, dim, variable.shape[i]) )
@@ -215,7 +225,9 @@ def write(fileName, variableName=None, variable=None, dimensions=None, attribute
       for a in attributes:
         rg.setncattr(a,attributes[a])
 
-  if not variable==None and not vh==None: vh[:] = variable
+  if not variable==None and not vh==None:
+    if not record==None: vh[record,:] = variable
+    else: vh[:] = variable
   rg.close
 
 
@@ -260,7 +272,9 @@ def testNCCF():
   nccf.write('q.nc', 'time', dimensions={'time':None}, attributes={'axis':'T', 'long_name':'Time in seconds', 'units':'seconds'})
   nccf.write('q.nc', 'it', d[-1], dimensions=['it'])
   nccf.write('q.nc', 'jt', d[-2], dimensions=['jt'])
-  nccf.write('q.nc', 'Temp', T, dimensions=['jt','it'])
+  nccf.write('q.nc', 'Temp', T, dimensions=['time','jt','it'])
+  nccf.write('q.nc', 'Temp', T, dimensions=['time','jt','it'], record=1)
+  nccf.write('q.nc', 'time', numpy.array([2]), record=1)
   dump('q.nc')
   print '======= unlimited finished' ; print
 
