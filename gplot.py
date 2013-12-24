@@ -648,6 +648,7 @@ def makeGuessAboutCmap(clim=None, colormap=None):
     else: plt.set_cmap('spectral')
   landColor=[.5,.5,.5]
   plt.gca().set_axis_bgcolor(landColor)
+  return (vmin, vmax)
 
 
 # Generate a succinct summary of the netcdf file contents

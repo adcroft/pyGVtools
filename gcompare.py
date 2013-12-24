@@ -174,10 +174,11 @@ def createUI(fileVarSlice1, fileVarSlice2, args):
     plt.gcf().subplots_adjust(left=.10, right=.97, wspace=0, bottom=.05, top=.9, hspace=.2)
     plt.subplot(3,1,1)
     var1.getData() # Actually read data from file
-    render(var1, args, elevation=eVar)
+    clim = render(var1, args, elevation=eVar)
     plt.title('A:  %s'%fileName1)
     plt.subplot(3,1,2)
     var2.getData() # Actually read data from file
+    args.clim = clim
     render(var2, args, elevation=eVar)
     plt.title('B:  %s'%fileName2)
     plt.subplot(3,1,3)
@@ -215,6 +216,7 @@ def render(var1, args, elevation=None, frame=0, skipXlabel=True, skipTitle=True,
   if args.log10: var1.data = np.log10(var1.data)
 
   # Now plot
+  clim = None
   if var1.rank==0:
     for d in var1.allDims:
       print '%s = %g %s'%(d.name,d.values[0],d.units)
@@ -273,7 +275,7 @@ def render(var1, args, elevation=None, frame=0, skipXlabel=True, skipTitle=True,
     if not skipXlabel: plt.xlabel(xLabel)
     plt.ylabel(yLabel)
     if ignoreClim: makeGuessAboutCmap(clim=args.dlim, colormap=args.colormap)
-    else: makeGuessAboutCmap(clim=args.clim, colormap=args.colormap)
+    else: clim = makeGuessAboutCmap(clim=args.clim, colormap=args.colormap)
     plt.colorbar(fraction=.08)
   axis=plt.gca()
   if var1.singleDims:
@@ -337,7 +339,7 @@ def render(var1, args, elevation=None, frame=0, skipXlabel=True, skipTitle=True,
       plt.gcf().canvas.mpl_connect('button_press_event', zoom2)
     plt.gca().format_coord = statusMesg
     plt.gcf().canvas.mpl_connect('key_press_event', keyPress)
-
+  return clim
 
 # Invoke parseCommandLine(), the top-level prodedure
 if __name__ == '__main__': parseCommandLine()
