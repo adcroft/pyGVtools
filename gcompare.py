@@ -155,14 +155,20 @@ def createUI(fileVarSlice1, fileVarSlice2, args):
     var1.rank = 2; var1.unlimitedDim.len = 1
     var1.singleDims.insert(0, var1.unlimitedDim)
     var1.dims.remove(var1.unlimitedDim)
+    var2.rank = 2; var2.unlimitedDim.len = 1
+    var2.singleDims.insert(0, var2.unlimitedDim)
+    var2.dims.remove(var2.unlimitedDim)
     for n in range(n0,n1):
       var1.singleDims[0].slice1 = slice(n,n+1)
       var1.singleDims[0].getData(forceRead=True)
+      var2.singleDims[0].slice1 = slice(n,n+1)
+      var2.singleDims[0].getData(forceRead=True)
       if n>0:
         if args.output:
-          plt.close(); setFigureSize(aspect, args.resolution)
+          plt.close(); setFigureSize(args.aspect[0]/args.aspect[1], args.resolution)
         else: plt.clf()
-      render(var1, args, frame=n+1)
+      #render(var1, args, frame=n+1)
+      render3panels(fileName1, var1, fileName2, var2, eVar, args, frame=n+1)
       if not args.output:
         if n==n0: plt.show(block=False)
         else: plt.draw()
@@ -171,24 +177,27 @@ def createUI(fileVarSlice1, fileVarSlice2, args):
     summarizeFile(rg2); print
     raise MyError( 'Variable name "%s" has resolved rank %i. Only 1D and 2D data can be plotted until you buy a holographic display.'%(variableName1, var1.rank))
   else:
-    plt.gcf().subplots_adjust(left=.10, right=.97, wspace=0, bottom=.05, top=.9, hspace=.2)
-    plt.subplot(3,1,1)
-    var1.getData() # Actually read data from file
-    clim = render(var1, args, elevation=eVar)
-    plt.title('A:  %s'%fileName1)
-    plt.subplot(3,1,2)
-    var2.getData() # Actually read data from file
-    args.clim = clim
-    render(var2, args, elevation=eVar)
-    plt.title('B:  %s'%fileName2)
-    plt.subplot(3,1,3)
-    varDiff = copy.copy(var1)
-    varDiff.data = var1.data - var2.data
-    plt.suptitle(var1.label, fontsize=18)
-    plt.title('A - B')
-    render(varDiff, args, elevation=eVar, skipXlabel=False, ignoreClim=True)
+    render3panels(fileName1, var1, fileName2, var2, eVar, args, frame=0)
     if not args.output: plt.show()
-  
+
+def render3panels(fileName1, var1, fileName2, var2, eVar, args, frame):
+  plt.gcf().subplots_adjust(left=.10, right=.97, wspace=0, bottom=.05, top=.9, hspace=.2)
+  plt.subplot(3,1,1)
+  var1.getData() # Actually read data from file
+  clim = render(var1, args, elevation=eVar, frame=frame)
+  plt.title('A:  %s'%fileName1)
+  plt.subplot(3,1,2)
+  var2.getData() # Actually read data from file
+  args.clim = clim
+  render(var2, args, elevation=eVar, frame=frame)
+  plt.title('B:  %s'%fileName2)
+  plt.subplot(3,1,3)
+  varDiff = copy.copy(var1)
+  varDiff.data = var1.data - var2.data
+  plt.suptitle(var1.label, fontsize=18)
+  plt.title('A - B')
+  render(varDiff, args, elevation=eVar, skipXlabel=False, ignoreClim=True, frame=frame)
+
 
 def render(var1, args, elevation=None, frame=0, skipXlabel=True, skipTitle=True, ignoreClim=False):
   # Optionally mask out a specific value
