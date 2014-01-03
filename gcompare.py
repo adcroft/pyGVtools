@@ -93,6 +93,8 @@ def parseCommandLine():
       help='The file[,variable] from which to read elevation for vertical section plots.')
   parser.add_argument('--animate', action='store_true',
       help='Animate over the unlimited dimension.')
+  parser.add_argument('--static2', action='store_true',
+      help='Hold constant the unlimited dimension index of second field when animating.')
   parser.add_argument('-o','--output', type=str, default='',
       help='Name of image file to create.')
   parser.add_argument('-r','--resolution', type=int, default=1024,
@@ -143,7 +145,7 @@ def createUI(fileVarSlice1, fileVarSlice2, args):
   rg1, var1 = readVariableFromFile(fileName1, variableName1, sliceSpecs1, ignoreCoords=args.indices)
   rg2, var2 = readVariableFromFile(fileName2, variableName2, sliceSpecs2, ignoreCoords=args.indices)
 
-  if var1.rank!=var2.rank:
+  if not args.static2 and var1.rank!=var2.rank:
     raise MyError('%s and %s have different ranks'%(variableName1,variableName2))
 
   # Set figure shape
@@ -155,14 +157,16 @@ def createUI(fileVarSlice1, fileVarSlice2, args):
     var1.rank = 2; var1.unlimitedDim.len = 1
     var1.singleDims.insert(0, var1.unlimitedDim)
     var1.dims.remove(var1.unlimitedDim)
-    var2.rank = 2; var2.unlimitedDim.len = 1
-    var2.singleDims.insert(0, var2.unlimitedDim)
-    var2.dims.remove(var2.unlimitedDim)
+    if not args.static2:
+      var2.rank = 2; var2.unlimitedDim.len = 1
+      var2.singleDims.insert(0, var2.unlimitedDim)
+      var2.dims.remove(var2.unlimitedDim)
     for n in range(n0,n1):
       var1.singleDims[0].slice1 = slice(n,n+1)
       var1.singleDims[0].getData(forceRead=True)
-      var2.singleDims[0].slice1 = slice(n,n+1)
-      var2.singleDims[0].getData(forceRead=True)
+      if not args.static2:
+        var2.singleDims[0].slice1 = slice(n,n+1)
+        var2.singleDims[0].getData(forceRead=True)
       if n>0:
         if args.output:
           plt.close(); setFigureSize(args.aspect[0]/args.aspect[1], args.resolution)
