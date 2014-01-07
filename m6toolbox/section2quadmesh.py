@@ -1,5 +1,5 @@
 import numpy as np
-import numpy.matlib
+
 
 def section2quadmesh(x, z, q, representation='pcm'):
   """
@@ -88,6 +88,7 @@ def section2quadmesh(x, z, q, representation='pcm'):
 if __name__ == '__main__':
 
   import matplotlib.pyplot as plt
+  import numpy.matlib
 
   # Test data
   x=np.arange(5)
