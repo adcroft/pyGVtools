@@ -1,3 +1,6 @@
+"""
+A collection of useful functions...
+"""
 import numpy as np
 
 
