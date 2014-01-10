@@ -127,6 +127,8 @@ def createUI(fileVarSlice1, fileVarSlice2, args):
   # Extract file, variable and slice specs from fileVarSlice2
   if debug: print 'createUI: fileVarSlice2=',fileVarSlice2
   (fileName2, variableName2, sliceSpecs2) = splitFileVarPos(fileVarSlice2)
+  if os.path.isdir(fileName2):
+    fileName2=os.path.join(fileName2,os.path.basename(fileName1))
   if sliceSpecs2==None: sliceSpecs2 = sliceSpecs1
   if variableName2==None: variableName2 = variableName1
   if debug: print 'createUI: fileName2=',fileName2,'variableName2=',variableName2,'sliceSpecs2=',sliceSpecs2
