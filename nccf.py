@@ -177,7 +177,8 @@ def write(fileName, variableName=None, variable=None, dimensions=None, attribute
 
   variableDimensions = None
   if dimensions==None:
-    if not variable==None:
+    if not variable==None and (isinstance(variable, numpy.ma.core.MaskedArray) or isinstance(variable, numpy.ndarray)):
+      print 'type(variable)=',type(variable)
       # Create or match some simple dimensions with made up names
       variableDimensions = []
       for i in range(len(variable.shape)):
@@ -226,7 +227,9 @@ def write(fileName, variableName=None, variable=None, dimensions=None, attribute
         rg.setncattr(a,attributes[a])
 
   if not variable==None and not vh==None:
-    if not record==None: vh[record,:] = variable
+    if not record==None:
+      if len(vh.shape)==1: vh[record] = variable
+      else: vh[record,:] = variable
     else: vh[:] = variable
   rg.close
 
@@ -273,8 +276,9 @@ def testNCCF():
   nccf.write('q.nc', 'it', d[-1], dimensions=['it'])
   nccf.write('q.nc', 'jt', d[-2], dimensions=['jt'])
   nccf.write('q.nc', 'Temp', T, dimensions=['time','jt','it'])
+  nccf.write('q.nc', 'time', 43200., record=0)
+  nccf.write('q.nc', 'time', 86400., record=1)
   nccf.write('q.nc', 'Temp', T, dimensions=['time','jt','it'], record=1)
-  nccf.write('q.nc', 'time', numpy.array([2]), record=1)
   dump('q.nc')
   print '======= unlimited finished' ; print
 
