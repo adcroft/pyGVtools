@@ -86,7 +86,9 @@ def parseCommandLine():
   parser.add_argument('--log10', action='store_true',
       help='Take the logarithm (base 10) of data before plotting.')
   parser.add_argument('-sg','--supergrid', type=str, default=None,
-      help='The supergrid to use for horizontal coordinates.')
+      help='The super-grid to use for horizontal coordinates.')
+  parser.add_argument('-os','--oceanstatic', type=str, default=None,
+      help='The ocean_static file to use for horizontal coordinates.')
   parser.add_argument('-IJ','--indices', action='store_true',
       help='Use memory indices for coordinates.')
   parser.add_argument('-e','--elevation', type=str, default=None,
@@ -262,7 +264,12 @@ def render(var1, args, elevation=None, frame=0, skipXlabel=True, skipTitle=True,
       xLabel = var1.dims[1].label; xLims = var1.dims[1].limits
       yLabel = var1.dims[0].label; yLims = var1.dims[0].limits
       if args.supergrid==None:
-        xCoord = extrapCoord( var1.dims[1].values); yCoord = extrapCoord( var1.dims[0].values)
+        if args.oceanstatic==None:
+          xCoord = extrapCoord( var1.dims[1].values); yCoord = extrapCoord( var1.dims[0].values)
+        else:
+          xCoord, xLims = readOSvar(args.oceanstatic, 'geolon_c', var1.dims)
+          yCoord, yLims = readOSvar(args.oceanstatic, 'geolat_c', var1.dims)
+          xLabel = u'Longitude (\u00B0E)' ; yLabel = u'Latitude (\u00B0N)'
       else:
         xCoord, xLims = readSGvar(args.supergrid, 'x', var1.dims)
         yCoord, yLims = readSGvar(args.supergrid, 'y', var1.dims)

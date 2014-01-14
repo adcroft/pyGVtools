@@ -86,7 +86,9 @@ def parseCommandLine():
   parser.add_argument('--log10', action='store_true',
       help='Take the logarithm (base 10) of data before plotting.')
   parser.add_argument('-sg','--supergrid', type=str, default=None,
-      help='The supergrid to use for horizontal coordinates.')
+      help='The super-grid to use for horizontal coordinates.')
+  parser.add_argument('-os','--oceanstatic', type=str, default=None,
+      help='The ocean_static file to use for horizontal coordinates.')
   parser.add_argument('-IJ','--indices', action='store_true',
       help='Use memory indices for coordinates.')
   parser.add_argument('-e','--elevation', type=str, default=None,
@@ -221,7 +223,12 @@ def render(var1, args, elevation=None, frame=0):
       xLabel = var1.dims[1].label; xLims = var1.dims[1].limits
       yLabel = var1.dims[0].label; yLims = var1.dims[0].limits
       if args.supergrid==None:
-        xCoord = extrapCoord( var1.dims[1].values); yCoord = extrapCoord( var1.dims[0].values)
+        if args.oceanstatic==None:
+          xCoord = extrapCoord( var1.dims[1].values); yCoord = extrapCoord( var1.dims[0].values)
+        else:
+          xCoord, xLims = readOSvar(args.oceanstatic, 'geolon_c', var1.dims)
+          yCoord, yLims = readOSvar(args.oceanstatic, 'geolat_c', var1.dims)
+          xLabel = u'Longitude (\u00B0E)' ; yLabel = u'Latitude (\u00B0N)'
       else:
         xCoord, xLims = readSGvar(args.supergrid, 'x', var1.dims)
         yCoord, yLims = readSGvar(args.supergrid, 'y', var1.dims)
@@ -729,6 +736,10 @@ def setFigureSize(aspect, verticalResolution):
 
 
 def readSGvar(fileName, varName, varDims):
+  """
+  Read a variable from a super-grid file, which is usually at twice the resolution of
+  the model grid.
+  """
   try: rg = Dataset(fileName,'r')
   except:
     if os.path.isfile(fileName): raise MyError('There was a problem opening "'+fileName+'".')
@@ -757,6 +768,54 @@ def readSGvar(fileName, varName, varDims):
     cData2 = rg.variables[varName][ySlice2,xSlice2]
     if varName=='x': cData2 = cData2 + 361.
     cData = np.append( cData1, cData2, axis=1)
+  cMin = np.min( cData[:,0] ); cMin = min( cMin, np.min( cData[:,-1] ) )
+  cMin = min( cMin, np.min( cData[0,:] ) ); cMin = min( cMin, np.min( cData[-1,:] ) )
+  cMax = np.max( cData[:,0] ); cMax = max( cMax, np.max( cData[:,-1] ) )
+  cMax = max( cMax, np.max( cData[0,:] ) ); cMax = max( cMax, np.max( cData[-1,:] ) )
+  return cData, (cMin, cMax)
+
+
+def readOSvar(fileName, varName, varDims):
+  """
+  Read a variable from an ocean_static file, which migh require extrapolation of corner data.
+  """
+  try: rg = Dataset(fileName,'r')
+  except:
+    if os.path.isfile(fileName): raise MyError('There was a problem opening "'+fileName+'".')
+    raise MyError('Could not find file "'+fileName+'".')
+
+  if not varName in rg.variables:
+    raise MyError('Could not find %s in %s'%(varName,fileName))
+
+  dims = rg.dimensions
+  xVarDim = None; yVarDim = None
+  for d in varDims:
+    if d.lenInFile==len(dims['xq']):
+      if xVarDim: raise MyError('Too many dimensions matches for nx')
+      else: xVarDim = d
+    if d.lenInFile==len(dims['yq']):
+      if yVarDim: raise MyError('Too many dimensions matches for nx')
+      else: yVarDim = d
+  xSlice1 = slice(xVarDim.slice1.start, xVarDim.slice1.stop)
+  ySlice1 = slice(yVarDim.slice1.start, yVarDim.slice1.stop)
+  if xVarDim.slice2==None:
+    cData = rg.variables[varName][ySlice1,xSlice1]
+  else:
+    xSlice2 = slice(xVarDim.slice2.start, xVarDim.slice2.stop)
+    ySlice2 = slice(yVarDim.slice1.start, yVarDim.slice1.stop)
+    cData1 = rg.variables[varName][ySlice1,xSlice1]
+    cData2 = rg.variables[varName][ySlice2,xSlice2]
+    if varName=='geolon_c': cData2 = cData2 + 361.
+    cData = np.append( cData1, cData2, axis=1)
+  if varName=='geolon_c':
+    cMin = cData.min(); cMax = cData.max()
+    if cMax-cMin>=360.: # Periodic and global
+      for (j,i), value in np.ndenumerate(cData):
+        if i>0 and value < cData[j,i-1]:
+          if value+360.<=cMax: cData[j,i] = cData[j,i]+360.
+          else: cData[j,i] = cMax
+  cData = np.insert(cData, 0, 2.*cData[:,0]-cData[:,1], axis=1)
+  cData = np.insert(cData, 0, 2.*cData[0,:]-cData[1,:], axis=0)
   cMin = np.min( cData[:,0] ); cMin = min( cMin, np.min( cData[:,-1] ) )
   cMin = min( cMin, np.min( cData[0,:] ) ); cMin = min( cMin, np.min( cData[-1,:] ) )
   cMax = np.max( cData[:,0] ); cMax = max( cMax, np.max( cData[:,-1] ) )
