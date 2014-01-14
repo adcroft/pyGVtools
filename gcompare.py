@@ -202,7 +202,8 @@ def createUI(fileVarSlice1, fileVarSlice2, args):
 
 def render3panels(fileName1, var1, fileName2, var2, eVar, args, frame):
   nPanels = args.panels
-  plt.gcf().subplots_adjust(left=.10, right=.97, wspace=0, bottom=.05, top=.9, hspace=.2)
+  if nPanels==3: plt.gcf().subplots_adjust(left=.10, right=.97, wspace=0, bottom=.05, top=.9, hspace=.2)
+  else: plt.gcf().subplots_adjust(left=.10, right=.97, wspace=0, bottom=.09, top=.9, hspace=.2)
   var1.getData() # Actually read data from file
   var2.getData() # Actually read data from file
   if nPanels>1:
@@ -211,14 +212,17 @@ def render3panels(fileName1, var1, fileName2, var2, eVar, args, frame):
     plt.title('A:  %s'%fileName1)
     plt.subplot(nPanels,1,2)
     args.clim = clim
-    render(var2, args, elevation=eVar, frame=frame)
+    render(var2, args, elevation=eVar, frame=frame, skipXlabel=(nPanels!=2))
     plt.title('B:  %s'%fileName2)
-  if nPanels==3: plt.subplot(nPanels,1,3)
+  if nPanels==3:
+    plt.subplot(nPanels,1,3)
+    plt.title('A - B')
+  elif nPanels==1:
+    plt.title('%s - %s'%(fileName1,fileName2))
+  plt.suptitle(var1.label, fontsize=18)
   if nPanels in [1,3]:
     varDiff = copy.copy(var1)
     varDiff.data = var1.data - var2.data
-    plt.suptitle(var1.label, fontsize=18)
-    plt.title('A - B')
     render(varDiff, args, elevation=eVar, skipXlabel=False, ignoreClim=True, frame=frame)
 
 
