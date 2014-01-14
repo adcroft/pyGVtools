@@ -73,6 +73,9 @@ def parseCommandLine():
   parser.add_argument('--dlim', type=float, nargs=2, metavar=('MIN','MAX'),
       help='''Specify the minimum/maximum color range for the difference plot.
       Values outside this range will be clipped to the minimum or maximum.''')
+  parser.add_argument('--panels', type=int, choices=range(1,4), default=3,
+      help='''Number of panels to show. 3 panels shows A, B and A-B; 2 panels
+      displays A and B; 1 panel shows just A-B.''')
   parser.add_argument('--ignore', type=float, nargs=1,
       help='Mask out the values equal to IGNORE.')
   parser.add_argument('--ignorelt', type=float, nargs=1,
@@ -99,9 +102,9 @@ def parseCommandLine():
       help='Hold constant the unlimited dimension index of second field when animating.')
   parser.add_argument('-o','--output', type=str, default='',
       help='Name of image file to create.')
-  parser.add_argument('-r','--resolution', type=int, default=1024,
+  parser.add_argument('-r','--resolution', type=int,
       help='Vertial resolution (in pixels) for image, e.g. 720 would give 720p video resolution. Default is 1024 pixels.')
-  parser.add_argument('-ar','--aspect', type=float, nargs=2, default=[3., 4.], metavar=('WIDTH','HEIGHT'),
+  parser.add_argument('-ar','--aspect', type=float, nargs=2, metavar=('WIDTH','HEIGHT'),
       help='An aspect ratio for image such as 16 9 (widescreen) or 4 3. Default is 3 4.')
   parser.add_argument('--stats', action='store_true',
       help='Print the statistics of viewed data.')
@@ -110,6 +113,15 @@ def parseCommandLine():
   parser.add_argument('-d','--debug', action='store_true',
       help='Turn on debugging information.')
   optCmdLineArgs = parser.parse_args()
+
+  if optCmdLineArgs.aspect==None:
+    if optCmdLineArgs.panels==1: optCmdLineArgs.aspect=[16., 9.]
+    elif optCmdLineArgs.panels==2: optCmdLineArgs.aspect=[4., 3.]
+    elif optCmdLineArgs.panels==3: optCmdLineArgs.aspect=[3., 4.]
+  if optCmdLineArgs.resolution==None:
+    if optCmdLineArgs.panels==1: optCmdLineArgs.resolution=600
+    elif optCmdLineArgs.panels==2: optCmdLineArgs.resolution=800
+    elif optCmdLineArgs.panels==3: optCmdLineArgs.resolution=1024
 
   if optCmdLineArgs.debug: debug = True ; enableDebugging()
 
@@ -189,22 +201,25 @@ def createUI(fileVarSlice1, fileVarSlice2, args):
     if not args.output: plt.show()
 
 def render3panels(fileName1, var1, fileName2, var2, eVar, args, frame):
+  nPanels = args.panels
   plt.gcf().subplots_adjust(left=.10, right=.97, wspace=0, bottom=.05, top=.9, hspace=.2)
-  plt.subplot(3,1,1)
   var1.getData() # Actually read data from file
-  clim = render(var1, args, elevation=eVar, frame=frame)
-  plt.title('A:  %s'%fileName1)
-  plt.subplot(3,1,2)
   var2.getData() # Actually read data from file
-  args.clim = clim
-  render(var2, args, elevation=eVar, frame=frame)
-  plt.title('B:  %s'%fileName2)
-  plt.subplot(3,1,3)
-  varDiff = copy.copy(var1)
-  varDiff.data = var1.data - var2.data
-  plt.suptitle(var1.label, fontsize=18)
-  plt.title('A - B')
-  render(varDiff, args, elevation=eVar, skipXlabel=False, ignoreClim=True, frame=frame)
+  if nPanels>1:
+    plt.subplot(nPanels,1,1)
+    clim = render(var1, args, elevation=eVar, frame=frame)
+    plt.title('A:  %s'%fileName1)
+    plt.subplot(nPanels,1,2)
+    args.clim = clim
+    render(var2, args, elevation=eVar, frame=frame)
+    plt.title('B:  %s'%fileName2)
+  if nPanels==3: plt.subplot(nPanels,1,3)
+  if nPanels in [1,3]:
+    varDiff = copy.copy(var1)
+    varDiff.data = var1.data - var2.data
+    plt.suptitle(var1.label, fontsize=18)
+    plt.title('A - B')
+    render(varDiff, args, elevation=eVar, skipXlabel=False, ignoreClim=True, frame=frame)
 
 
 def render(var1, args, elevation=None, frame=0, skipXlabel=True, skipTitle=True, ignoreClim=False):
