@@ -147,9 +147,16 @@ def createUI(fileVarSlice, args):
     var1.rank = 2; var1.unlimitedDim.len = 1
     var1.singleDims.insert(0, var1.unlimitedDim)
     var1.dims.remove(var1.unlimitedDim)
+    if not eVar == None:
+      eVar.rank = 2; eVar.unlimitedDim.len = 1
+      eVar.singleDims.insert(0, eVar.unlimitedDim)
+      eVar.dims.remove(eVar.unlimitedDim)
     for n in range(n0,n1):
       var1.singleDims[0].slice1 = slice(n,n+1)
       var1.singleDims[0].getData(forceRead=True)
+      if not eVar == None:
+        eVar.singleDims[0].slice1 = slice(n,n+1)
+        eVar.singleDims[0].getData(forceRead=True)
       if n>0:
         if args.output:
           plt.close(); setFigureSize(args.aspect[0]/args.aspect[1], args.resolution)
