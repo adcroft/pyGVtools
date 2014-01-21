@@ -350,6 +350,9 @@ def readVariableFromFile(fileName, variableName, sliceSpecs, ignoreCoords=False,
     summarizeFile(rg)
     exit(0)
 
+  # Intercept the functions of variables
+  if isFunction(variableName): return rg, FnSlice(rg, variableName, sliceSpecs, ignoreCoords=ignoreCoords)
+
   # Check that the variable is in the file (allowing for case mismatch)
   for v in rg.variables:
     if variableName.lower() == v.lower(): variableName=v ; break
@@ -385,7 +388,7 @@ class NetcdfDim:
           )                          # Any of the three previous groups is optional but at least one is needed
           (?P<excess>.*)             # Nothing else is allowed but this will catch anything else
           """, sliceSpec, re.VERBOSE)
-    if debug: print 'NetcdfSlice: Interpretting "%s", groups='%(sliceSpec),equalsSplit.groups()
+    if debug: print 'NetcdfDim: Interpretting "%s", groups='%(sliceSpec),equalsSplit.groups()
     lhsEquals, lhs, equals, rhs, low, colon, high, excess = equalsSplit.groups()
     if len(excess)>0: raise MyError('Syntax error: could not interpret "'+sliceSpec+'".')
     if len(rhs)==0: raise MyError('Syntax error: could not find range on RHS of "'+sliceSpec+'".')
@@ -494,7 +497,7 @@ class NetcdfDim:
 
 class NetcdfSlice:
   """
-  Class for reading a slice of data from a netcdf using convenient index or coordinate ranges.
+  Class for reading a slice of data from a netcdf file using convenient index or coordinate ranges.
   """
   def __init__(self, rootGroup, variableName, sliceSpecs, ignoreCoords=False):
     """
@@ -580,6 +583,42 @@ class NetcdfSlice:
           np.squeeze( self.variableHandle[slices2] ) ), axis=1)
 
 
+class FnSlice:
+  """
+  Class for reading a function of variables from a netcdf file.
+  """
+  def __init__(self, rootGroup, fnString, sliceSpecs, ignoreCoords=False):
+    """
+    Interpret F(x,y,...), assaciate a NetcdfSlice for each of x,y,... and
+    apply F() when getting data.
+    """
+    m = re.match('(\w+)\(([\w,]+)\)',fnString)
+    self.function = m.group(1)
+    varNetcdfSlices = []
+    for v in m.group(2).split(','):
+      varNetcdfSlices.append( NetcdfSlice(rootGroup, v, sliceSpecs, ignoreCoords=ignoreCoords) )
+    self.vars = varNetcdfSlices
+    self.rank = varNetcdfSlices[0].rank
+    self.dims = varNetcdfSlices[0].dims
+    self.singleDims = varNetcdfSlices[0].singleDims
+    self.label = fnString
+    self.data = None
+  def getData(self):
+    """
+    Popolate FnfSlice.data with data from file
+    """
+    for v in self.vars:
+      v.getData()
+    if self.function.lower() == 'sigma0':
+      self.data = m6toolbox.rho_Wright97(self.vars[0].data, self.vars[1].data, 0)
+    elif self.function.lower() == 'sigma2':
+      self.data = m6toolbox.rho_Wright97(self.vars[0].data, self.vars[1].data, 2e7)
+    elif self.function.lower() == 'sigma4':
+      self.data = m6toolbox.rho_Wright97(self.vars[0].data, self.vars[1].data, 4e7)
+    else: raise MyError('Unknown function: '+self.function)
+    
+
+
 def splitFileVarPos(string):
   """
   Split a string in form of "file,variable[...]" into three string parts
@@ -610,6 +649,15 @@ def splitVarPos(string):
       if m.group(4): pSpecs = m.group(4).split(',')
   if debug: print 'splitVarPos: vName=',vName,'pSpecs=',pSpecs
   return vName, pSpecs
+
+
+def isFunction(string):
+  """
+  Detects whether a string takes the form of a function, F(x,y,...)
+  """
+  m = re.match('(\w+)\(([\w,]+)\)',string)
+  if m: return True
+  else: return False
 
 
 def constructLabel(ncObj, default=''):
