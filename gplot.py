@@ -107,9 +107,11 @@ def parseCommandLine():
       help='Print selected data to terminal.')
   parser.add_argument('-d','--debug', action='store_true',
       help='Turn on debugging information.')
+  parser.add_argument('--unittests', action='store_true', help=argparse.SUPPRESS)
   optCmdLineArgs = parser.parse_args()
 
   if optCmdLineArgs.debug: enableDebugging()
+  if optCmdLineArgs.unittests: unittests(optCmdLineArgs); return
 
   createUI(optCmdLineArgs.file_var_slice, optCmdLineArgs)
 
@@ -597,16 +599,15 @@ def splitVarPos(string):
   """
   vName = None; pSpecs = None
   if string:
-    cSplit = string.split(',')
-    if cSplit: vName = cSplit[0]
-    if len(cSplit)>1: pSpecs = cSplit[1:]
-    #m = re.match('(\w+)(\[([\w,:=\.\\+\\-EeNnDd]*?)\])?(.*)',string)
-    #if m:
-    #  if len(m.groups())>3 and len(m.group(4))>0: raise MyError('Syntax error "'+m.group(4)+'"?')
-    #  vName = m.group(1)
-    #  if m.group(3): pSpecs = m.group(3)
-    #else: raise MyError('Could not decipher "'+string+'" for variable name.')
-  #if pSpecs: pSpecs = re.split(',',pSpecs)
+    #cSplit = string.split(',')
+    #if cSplit: vName = cSplit[0]
+    #if len(cSplit)>1: pSpecs = cSplit[1:]
+
+    #m = re.match('(\w+),?(.*)',string)
+    m = re.match('((\w+)(\([\w,]+\))?),?(.*)',string)
+    if m:
+      vName = m.group(1)
+      if m.group(4): pSpecs = m.group(4).split(',')
   if debug: print 'splitVarPos: vName=',vName,'pSpecs=',pSpecs
   return vName, pSpecs
 
@@ -837,6 +838,15 @@ def enableDebugging(newValue=True):
   """
   global debug
   debug = newValue
+
+
+def unittests(args):
+  print splitFileVarPos('file.nc')
+  print splitFileVarPos('file.nc,variable')
+  print splitFileVarPos('file.nc,variable,:')
+  print splitFileVarPos('file.nc,variable,=-1:4,:')
+  print splitFileVarPos('file.nc,variable(S,T),=-1:4,:')
+  print splitFileVarPos(args.file_var_slice)
 
 
 # Invoke parseCommandLine(), the top-level prodedure
