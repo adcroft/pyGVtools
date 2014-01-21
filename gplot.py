@@ -32,6 +32,7 @@ import m6toolbox
 
 debug = False # Global debugging
 warnings.simplefilter('error', UserWarning)
+np.seterr(divide='ignore', invalid='ignore', over='ignore')
 
 
 def parseCommandLine():
@@ -138,24 +139,24 @@ def createUI(fileVarSlice, args):
   else: eVar = None
 
   # Read the meta-data for the variable to be plotted
-  rg, var1 = readVariableFromFile(fileName, variableName, sliceSpecs, ignoreCoords=args.indices)
+  rg, var = readVariableFromFile(fileName, variableName, sliceSpecs, ignoreCoords=args.indices)
 
   # Set figure shape
   setFigureSize(args.aspect[0]/args.aspect[1], args.resolution)
 
   # Based on rank, either create interactive plot, animate or intercept requests for rank >2
-  if var1.rank==3 and args.animate and not var1.unlimitedDim==None:
-    n0 = var1.unlimitedDim.slice1.start; n1 = var1.unlimitedDim.slice1.stop
-    var1.rank = 2; var1.unlimitedDim.len = 1
-    var1.singleDims.insert(0, var1.unlimitedDim)
-    var1.dims.remove(var1.unlimitedDim)
+  if var.rank==3 and args.animate and not var.unlimitedDim==None:
+    n0 = var.unlimitedDim.slice1.start; n1 = var.unlimitedDim.slice1.stop
+    var.rank = 2; var.unlimitedDim.len = 1
+    var.singleDims.insert(0, var.unlimitedDim)
+    var.dims.remove(var.unlimitedDim)
     if not eVar == None:
       eVar.rank = 2; eVar.unlimitedDim.len = 1
       eVar.singleDims.insert(0, eVar.unlimitedDim)
       eVar.dims.remove(eVar.unlimitedDim)
     for n in range(n0,n1):
-      var1.singleDims[0].slice1 = slice(n,n+1)
-      var1.singleDims[0].getData(forceRead=True)
+      var.singleDims[0].slice1 = slice(n,n+1)
+      var.singleDims[0].getData(forceRead=True)
       if not eVar == None:
         eVar.singleDims[0].slice1 = slice(n,n+1)
         eVar.singleDims[0].getData(forceRead=True)
@@ -163,87 +164,87 @@ def createUI(fileVarSlice, args):
         if args.output:
           plt.close(); setFigureSize(args.aspect[0]/args.aspect[1], args.resolution)
         else: plt.clf()
-      render(var1, args, frame=n+1, elevation=eVar)
+      render(var, args, frame=n+1, elevation=eVar)
       if not args.output:
         if n==n0: plt.show(block=False)
         else: plt.draw()
-  elif var1.rank>2:
+  elif var.rank>2:
     summarizeFile(rg); print
-    raise MyError( 'Variable name "%s" has resolved rank %i. Only 1D and 2D data can be plotted until you buy a holographic display.'%(variableName, var1.rank))
+    raise MyError( 'Variable name "%s" has resolved rank %i. Only 1D and 2D data can be plotted until you buy a holographic display.'%(variableName, var.rank))
   else:
-    render(var1, args, elevation=eVar)
+    render(var, args, elevation=eVar)
     if not args.output: plt.show()
   
 
-def render(var1, args, elevation=None, frame=0):
-  var1.getData() # Actually read data from file
+def render(var, args, elevation=None, frame=0):
+  var.getData() # Actually read data from file
   # Optionally mask out a specific value
   if args.ignore:
-    var1.data = np.ma.masked_array(var1.data, mask=[var1.data==args.ignore])
+    var.data = np.ma.masked_array(var.data, mask=[var.data==args.ignore])
   if args.ignorelt:
-    var1.data = np.ma.masked_array(var1.data, mask=[var1.data<=args.ignorelt])
+    var.data = np.ma.masked_array(var.data, mask=[var.data<=args.ignorelt])
   if args.ignoregt:
-    var1.data = np.ma.masked_array(var1.data, mask=[var1.data>=args.ignoregt])
+    var.data = np.ma.masked_array(var.data, mask=[var.data>=args.ignoregt])
   if args.scale:
-    var1.data = args.scale * var1.data
+    var.data = args.scale * var.data
 
-  if args.list: print 'createUI: Data =\n',var1.data
+  if args.list: print 'createUI: Data =\n',var.data
   if args.stats:
-    dMin = np.min(var1.data); dMax = np.max(var1.data)
+    dMin = np.min(var.data); dMax = np.max(var.data)
     if dMin==0 and dMax>0:
-      dMin = np.min(var1.data[var1.data!=0])
+      dMin = np.min(var.data[var.data!=0])
       print 'Mininum=',dMin,'(ignoring zeros) Maximum=',dMax
     elif dMax==0 and dMin<0:
-      dMax = np.max(var1.data[var1.data!=0])
+      dMax = np.max(var.data[var.data!=0])
       print 'Mininum=',dMin,'Maximum=',dMax,'(ignoring zeros)'
     else: print 'Mininum=',dMin,'Maximum=',dMax
 
-  if args.offset: var1.data = var1.data + args.offset
-  if args.log10: var1.data = np.log10(var1.data)
+  if args.offset: var.data = var.data + args.offset
+  if args.log10: var.data = np.log10(var.data)
 
   # Now plot
-  if var1.rank==0:
-    for d in var1.allDims:
+  if var.rank==0:
+    for d in var.allDims:
       print '%s = %g %s'%(d.name,d.values[0],d.units)
-    print var1.vname+' = ',var1.data,'   '+var1.units
+    print var.vname+' = ',var.data,'   '+var.units
     exit(0)
-  elif var1.rank==1: # Line plot
-    if var1.dims[0].isZaxis: # Transpose 1d plot
-      xCoord = var1.data ; yData = var1.dims[0].values
+  elif var.rank==1: # Line plot
+    if var.dims[0].isZaxis: # Transpose 1d plot
+      xCoord = var.data ; yData = var.dims[0].values
       plt.plot(xCoord, yData)
-      plt.xlabel(var1.label)
-      plt.ylabel(var1.dims[0].label);
-      if var1.dims[0].values[0]>var1.dims[0].values[-1]: plt.gca().invert_yaxis()
-      if var1.dims[0].positiveDown: plt.gca().invert_yaxis()
+      plt.xlabel(var.label)
+      plt.ylabel(var.dims[0].label);
+      if var.dims[0].values[0]>var.dims[0].values[-1]: plt.gca().invert_yaxis()
+      if var.dims[0].positiveDown: plt.gca().invert_yaxis()
     else: # Normal 1d plot
-      xCoord = var1.dims[0].values; yData = var1.data
+      xCoord = var.dims[0].values; yData = var.data
       plt.plot(xCoord, yData)
-      plt.xlabel(var1.dims[0].label); plt.xlim(var1.dims[0].limits[0], var1.dims[0].limits[-1])
-      plt.ylabel(var1.label)
-  elif var1.rank==2: # Pseudo color plot
+      plt.xlabel(var.dims[0].label); plt.xlim(var.dims[0].limits[0], var.dims[0].limits[-1])
+      plt.ylabel(var.label)
+  elif var.rank==2: # Pseudo color plot
     # Add an extra element to coordinate to force pcolormesh to draw all cells
-    if var1.dims[1].isZaxis: # Happens for S(t,z)
-      xCoord = extrapCoord( var1.dims[0].values); yCoord = extrapCoord( var1.dims[1].values)
-      zData = np.transpose(var1.data)
-      xLabel = var1.dims[0].label; xLims = var1.dims[0].limits
-      yLabel = var1.dims[1].label; yLims = var1.dims[1].limits
-      yDim = var1.dims[1]
+    if var.dims[1].isZaxis: # Happens for S(t,z)
+      xCoord = extrapCoord( var.dims[0].values); yCoord = extrapCoord( var.dims[1].values)
+      zData = np.transpose(var.data)
+      xLabel = var.dims[0].label; xLims = var.dims[0].limits
+      yLabel = var.dims[1].label; yLims = var.dims[1].limits
+      yDim = var.dims[1]
     else:
-      xLabel = var1.dims[1].label; xLims = var1.dims[1].limits
-      yLabel = var1.dims[0].label; yLims = var1.dims[0].limits
+      xLabel = var.dims[1].label; xLims = var.dims[1].limits
+      yLabel = var.dims[0].label; yLims = var.dims[0].limits
       if args.supergrid==None:
         if args.oceanstatic==None:
-          xCoord = extrapCoord( var1.dims[1].values); yCoord = extrapCoord( var1.dims[0].values)
+          xCoord = extrapCoord( var.dims[1].values); yCoord = extrapCoord( var.dims[0].values)
         else:
-          xCoord, xLims = readOSvar(args.oceanstatic, 'geolon_c', var1.dims)
-          yCoord, yLims = readOSvar(args.oceanstatic, 'geolat_c', var1.dims)
+          xCoord, xLims = readOSvar(args.oceanstatic, 'geolon_c', var.dims)
+          yCoord, yLims = readOSvar(args.oceanstatic, 'geolat_c', var.dims)
           xLabel = u'Longitude (\u00B0E)' ; yLabel = u'Latitude (\u00B0N)'
       else:
-        xCoord, xLims = readSGvar(args.supergrid, 'x', var1.dims)
-        yCoord, yLims = readSGvar(args.supergrid, 'y', var1.dims)
+        xCoord, xLims = readSGvar(args.supergrid, 'x', var.dims)
+        yCoord, yLims = readSGvar(args.supergrid, 'y', var.dims)
         xLabel = u'Longitude (\u00B0E)' ; yLabel = u'Latitude (\u00B0N)'
-      zData = var1.data
-      yDim = var1.dims[0]
+      zData = var.data
+      yDim = var.dims[0]
     if yDim.isZaxis and not elevation==None: # Z on y axis ?
       elevation.getData()
       #yCoord = elevation.data
@@ -255,20 +256,20 @@ def render(var1, args, elevation=None, frame=0):
     if yDim.isZaxis and elevation==None: # Z on y axis ?
       if yCoord[0]>yCoord[-1]: plt.gca().invert_yaxis(); yLims = reversed(yLims)
       if yDim.positiveDown: plt.gca().invert_yaxis(); yLims = reversed(yLims)
-    if len(var1.label)>50: fontsize=10
-    elif len(var1.label)>30: fontsize=12
+    if len(var.label)>50: fontsize=10
+    elif len(var.label)>30: fontsize=12
     else: fontsize=14;
-    if args.scale: plt.title(var1.label+' x%e'%(args.scale[0]),fontsize=fontsize)
-    else: plt.title(var1.label,fontsize=fontsize)
+    if args.scale: plt.title(var.label+' x%e'%(args.scale[0]),fontsize=fontsize)
+    else: plt.title(var.label,fontsize=fontsize)
     plt.xlim(xLims); plt.ylim(yLims)
     plt.xlabel(xLabel) ; plt.ylabel(yLabel)
     makeGuessAboutCmap(clim=args.clim, colormap=args.colormap)
     plt.tight_layout()
     plt.colorbar(fraction=.08)
   axis=plt.gca()
-  if var1.singleDims:
+  if var.singleDims:
     text = ''
-    for d in var1.singleDims:
+    for d in var.singleDims:
       if len(text): text = text+'   '
       text = text + d.name + ' = ' + str(d.values[0])
       if d.units: text = text + ' (' + d.units + ')'
@@ -276,7 +277,7 @@ def render(var1, args, elevation=None, frame=0):
   if args.output:
     if args.animate:
       dt = time.time() - start_time
-      nf = var1.singleDims[0].initialLen
+      nf = var.singleDims[0].initialLen
       print 'Writing file "%s" (%i/%i)'%(args.output%(frame),frame,nf), \
             'Elapsed %.1fs, %.2f FPS, total %.1fs, remaining %.1fs'%(dt, frame/dt, 1.*nf/frame*dt, (1.*nf/frame-1.)*dt)
       try: plt.savefig(args.output%(frame),pad_inches=0.)
@@ -285,16 +286,16 @@ def render(var1, args, elevation=None, frame=0):
   elif not args.animate: # Interactive and static
     def keyPress(event):
       if event.key=='q': exit(0)
-    if var1.rank==1:
+    if var.rank==1:
       def statusMesg(x,y):
         # -1 needed because of extension for pcolormesh
         i = min(range(len(xCoord)-1), key=lambda l: abs(xCoord[l]-x))
         if not i==None:
           val = yData[i]
-          if val is np.ma.masked: return 'x=%.3f  %s(%i)=NaN'%(x,var1.vname,i+1)
-          else: return 'x=%.3f  %s(%i)=%g'%(x,var1.vname,i+1,val)
+          if val is np.ma.masked: return 'x=%.3f  %s(%i)=NaN'%(x,var.vname,i+1)
+          else: return 'x=%.3f  %s(%i)=%g'%(x,var.vname,i+1,val)
         else: return 'x=%.3f y=%.3f'%(x,y)
-    elif var1.rank==2:
+    elif var.rank==2:
       def statusMesg(x,y):
         if len(xCoord.shape)==1:
           # -2 needed because of coords are for vertices and need to be averaged to centers
@@ -306,8 +307,8 @@ def render(var1, args, elevation=None, frame=0):
           j,i = np.unravel_index(idx,zData.shape)
         if not i==None:
           val = zData[j,i]
-          if val is np.ma.masked: return 'x,y=%.3f,%.3f  %s(%i,%i)=NaN'%(x,y,var1.vname,i+1,j+1)
-          else: return 'x,y=%.3f,%.3f  %s(%i,%i)=%g'%(x,y,var1.vname,i+1,j+1,val)
+          if val is np.ma.masked: return 'x,y=%.3f,%.3f  %s(%i,%i)=NaN'%(x,y,var.vname,i+1,j+1)
+          else: return 'x,y=%.3f,%.3f  %s(%i,%i)=%g'%(x,y,var.vname,i+1,j+1,val)
         else: return 'x,y=%.3f,%.3f'%(x,y)
       xmin,xmax=axis.get_xlim(); ymin,ymax=axis.get_ylim();
       def zoom(event): # Scroll wheel up/down
