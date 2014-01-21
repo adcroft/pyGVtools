@@ -328,12 +328,13 @@ def render(var1, args, elevation=None, frame=0, skipXlabel=True, skipTitle=True,
     if not skipXlabel: axis.annotate(text, xy=(0.005,.995), xycoords='figure fraction', verticalalignment='top', fontsize=8)
   if args.output:
     if args.animate:
-      dt = time.time() - start_time
-      nf = var1.singleDims[0].initialLen
-      print 'Writing file "%s" (%i/%i)'%(args.output%(frame),frame,nf), \
-            'Elapsed %.1fs, %.2f FPS, total %.1fs, remaining %.1fs'%(dt, frame/dt, 1.*nf/frame*dt, (1.*nf/frame-1.)*dt)
-      try: plt.savefig(args.output%(frame),pad_inches=0.)
-      except: raise MyError('output filename must contain %D.Di when animating')
+      if not skipXlabel:
+        dt = time.time() - start_time
+        nf = var1.singleDims[0].initialLen
+        print 'Writing file "%s" (%i/%i)'%(args.output%(frame),frame,nf), \
+              'Elapsed %.1fs, %.2f FPS, total %.1fs, remaining %.1fs'%(dt, frame/dt, 1.*nf/frame*dt, (1.*nf/frame-1.)*dt)
+        try: plt.savefig(args.output%(frame),pad_inches=0.)
+        except: raise MyError('output filename must contain %D.Di when animating')
     else: plt.savefig(args.output,pad_inches=0.)
   elif not args.animate: # Interactive and static
     def keyPress(event):
