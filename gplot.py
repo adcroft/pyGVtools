@@ -602,6 +602,7 @@ class FnSlice:
     self.dims = varNetcdfSlices[0].dims
     self.singleDims = varNetcdfSlices[0].singleDims
     self.label = fnString
+    self.vname = fnString
     self.data = None
   def getData(self):
     """
