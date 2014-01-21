@@ -150,7 +150,7 @@ def createUI(fileVarSlice1, fileVarSlice2, args):
   # Read the meta-data for elevation, if asked for (needed for section plots)
   if args.elevation:
     (elevFileName, elevVariableName, elevSliceSpecs) = splitFileVarPos(args.elevation)
-    if elevSliceSpecs==None: elevSliceSpecs = sliceSpecs
+    if elevSliceSpecs==None: elevSliceSpecs = sliceSpecs1
     if elevVariableName==None: elevVariableName='elevation'
     if debug: print 'elevFileName=',elevFileName,'eName=',elevVariableName,'eSlice=',elevSliceSpecs
     eRg, eVar = readVariableFromFile(elevFileName, elevVariableName, elevSliceSpecs,
