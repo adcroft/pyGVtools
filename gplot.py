@@ -629,10 +629,8 @@ class FnSlice:
       if global_eVar.data==None:
         global_eVar.getData()
         global_eVar.refreshable = False
-      print 'FnSlice: global_eVar.shape=',global_eVar.data.shape
       self.data, zOut, hOut = m6toolbox.axisAverage( self.vars[0].data, z=global_eVar.data )
       global_eVar.data = zOut
-      print 'FnSlice: new global_eVar.shape=',global_eVar.data.shape
     else: raise MyError('Unknown function: '+self.function)
     
 
