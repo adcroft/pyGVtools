@@ -609,7 +609,7 @@ class FnSlice:
     self.label = fnString
     self.vname = fnString
     self.data = None
-    if self.function == 'xave':
+    if self.function.lower() in ['xave', 'xpsi']:
       self.rank = self.rank - 1
   def getData(self):
     """
@@ -631,8 +631,17 @@ class FnSlice:
         global_eVar.refreshable = False
       self.data, zOut, hOut = m6toolbox.axisAverage( self.vars[0].data, z=global_eVar.data )
       global_eVar.data = zOut
+    elif self.function.lower() == 'xpsi':
+      xSum = np.sum(self.vars[0].data, axis=-1) # Zonal sum
+      #psi1 = np.cumsum( xSum[:,::-1], axis=-2)
+      #psi2 = np.cumsum( xSum, axis=-2)
+      #self.data = psi1[:,::-1] - psi2
+      self.data = np.cumsum( xSum[:,::-1], axis=-2)[:,::-1]
+      if global_eVar!=None and global_eVar.data==None:
+        global_eVar.getData()
+        global_eVar.refreshable = False
+        global_eVar.data = np.min(global_eVar.data, axis=-1)
     else: raise MyError('Unknown function: '+self.function)
-    
 
 
 def splitFileVarPos(string):
