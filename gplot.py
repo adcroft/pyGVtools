@@ -33,6 +33,7 @@ import m6toolbox
 debug = False # Global debugging
 warnings.simplefilter('error', UserWarning)
 np.seterr(divide='ignore', invalid='ignore', over='ignore')
+global_eVar = None # Global for averaging from within FnSlice
 
 
 def parseCommandLine():
@@ -136,6 +137,8 @@ def createUI(fileVarSlice, args):
     if debug: print 'elevFileName=',elevFileName,'eName=',elevVariableName,'eSlice=',elevSliceSpecs
     eRg, eVar = readVariableFromFile(elevFileName, elevVariableName, elevSliceSpecs,
         ignoreCoords=args.indices, alternativeNames=['elev', 'e', 'h'])
+    global global_eVar
+    global_eVar = eVar
   else: eVar = None
 
   # Read the meta-data for the variable to be plotted
@@ -246,7 +249,7 @@ def render(var, args, elevation=None, frame=0):
       zData = var.data
       yDim = var.dims[0]
     if yDim.isZaxis and not elevation==None: # Z on y axis ?
-      elevation.getData()
+      if elevation.refreshable: elevation.getData()
       #yCoord = elevation.data
       xCoord, yCoord, zData = m6toolbox.section2quadmesh(xCoord, elevation.data, zData, representation='pcm')
       yLims = (np.amin(yCoord[-1,:]), np.amax(yCoord[0,:]))
@@ -567,6 +570,7 @@ class NetcdfSlice:
     self.label, self.name, self.units = constructLabel(variableHandle, variableName)
     self.vname = variableName
     self.rank = len(self.dims)
+    self.refreshable = True
   def getData(self):
     """
     Popolate NetcdfSlice.data with data from file
@@ -605,6 +609,8 @@ class FnSlice:
     self.label = fnString
     self.vname = fnString
     self.data = None
+    if self.function == 'xave':
+      self.rank = self.rank - 1
   def getData(self):
     """
     Popolate FnfSlice.data with data from file
@@ -617,6 +623,16 @@ class FnSlice:
       self.data = m6toolbox.rho_Wright97(self.vars[0].data, self.vars[1].data, 2e7)
     elif self.function.lower() == 'sigma4':
       self.data = m6toolbox.rho_Wright97(self.vars[0].data, self.vars[1].data, 4e7)
+    elif self.function.lower() == 'xave':
+      global global_eVar
+      if global_eVar==None: raise MyError('Elevation or thickness is necessary to compute a zonal average.')
+      if global_eVar.data==None:
+        global_eVar.getData()
+        global_eVar.refreshable = False
+      print 'FnSlice: global_eVar.shape=',global_eVar.data.shape
+      self.data, zOut, hOut = m6toolbox.axisAverage( self.vars[0].data, z=global_eVar.data )
+      global_eVar.data = zOut
+      print 'FnSlice: new global_eVar.shape=',global_eVar.data.shape
     else: raise MyError('Unknown function: '+self.function)
     
 
