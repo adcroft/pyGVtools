@@ -62,7 +62,7 @@ def dump(fileName):
   rg.close()
 
 
-def readVar(fileName, variableName, *args):
+def readVar(fileName, variableName, dtype='float64', *args):
   """
   Reads a variable from a netCDF file.
 
@@ -100,14 +100,14 @@ def readVar(fileName, variableName, *args):
       if d in rg.variables: dimensions.append( rg.variables[d][args[n]] )
       else: dimensions.append( args[n] )
     else:
-      if d in rg.variables: dimensions.append( rg.variables[d][:] )
+      if d in rg.variables: dimensions.append( numpy.asarray(rg.variables[d][:], dtype=dtype) )
       else: dimensions.append( range( len(rg.dimensions[d] ) ) )
 
   attributes = {}
   for a in vh.ncattrs():
     attributes[a.encode('ascii','ignore')] = vh.getncattr(a)
 
-  data = vh[args]
+  data = numpy.ma.asarray(vh[args][:], dtype=dtype)
   rg.close()
   return data, dimensions, attributes
 
