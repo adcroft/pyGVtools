@@ -629,18 +629,23 @@ class FnSlice:
       if global_eVar.data==None:
         global_eVar.getData()
         global_eVar.refreshable = False
-      self.data, zOut, hOut = m6toolbox.axisAverage( self.vars[0].data, z=global_eVar.data )
+      self.data, zOut, _ = m6toolbox.axisAverage( self.vars[0].data, z=global_eVar.data )
       global_eVar.data = zOut
     elif self.function.lower() == 'xpsi':
       xSum = np.sum(self.vars[0].data, axis=-1) # Zonal sum
       #psi1 = np.cumsum( xSum[:,::-1], axis=-2)
       #psi2 = np.cumsum( xSum, axis=-2)
       #self.data = psi1[:,::-1] - psi2
-      self.data = np.cumsum( xSum[:,::-1], axis=-2)[:,::-1]
+      nk, nj = xSum.shape
+      #self.data = np.cumsum( xSum[:,::-1], axis=-2)[:,::-1]
+      self.data = np.zeros((nk+1,nj))
+      for k in range(nk,0,-1):
+        self.data[k-1,:] = self.data[k,:] - xSum[k-1,:]
       if global_eVar!=None and global_eVar.data==None:
         global_eVar.getData()
         global_eVar.refreshable = False
         global_eVar.data = np.min(global_eVar.data, axis=-1)
+        self.data = self.data[1:,:]
     else: raise MyError('Unknown function: '+self.function)
 
 
