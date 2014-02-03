@@ -2,6 +2,10 @@
 A collection of useful functions...
 """
 import numpy as np
+import axisAverage as aaa
+
+# Aliases so m6toolbox can export other functions
+axisAverage = aaa.axisAverage
 
 
 def section2quadmesh(x, z, q, representation='pcm'):
