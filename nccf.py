@@ -10,7 +10,7 @@ debug = False # Global debugging
 
 def openNetCDFfileForReading(fileName):
   """
-  Return Dataset type for file.
+  Return Dataset type for file to read.
   """
 
   try: rg = nc4.Dataset(fileName, 'r')
@@ -24,7 +24,12 @@ def dump(fileName):
   """
   A succinct dump of a netCDF4 file.
   """
-  rg = openNetCDFfileForReading(fileName)
+  if isinstance(fileName, nc4.Dataset):
+    closeWhenDone = False 
+    rg = fileName
+  else: 
+    closeWhenDone = True
+    rg = openNetCDFfileForReading(fileName)
   dims = rg.dimensions; vars = rg.variables
   print 'Summary of %s:'%fileName
   def allAttributes(obj):
@@ -59,10 +64,10 @@ def dump(fileName):
     if 'units' in obj.ncattrs(): oString += ' ('+obj.units+')'
     print oString
     print '  attributes:',allAttributes(obj)
-  rg.close()
+  if closeWhenDone: rg.close()
 
 
-def readVar(fileName, variableName, dtype='float64', *args):
+def readVar(fileName, variableName, *args, **kwargs):
   """
   Reads a variable from a netCDF file.
 
@@ -79,12 +84,19 @@ def readVar(fileName, variableName, dtype='float64', *args):
   >>> T,dims,atts = nccf.readVar('test.nc','xyz',rang(1,4),3)
   """
 
-  rg = openNetCDFfileForReading(fileName)
+  if isinstance(fileName, nc4.Dataset):
+    closeWhenDone = False 
+    rg = fileName
+  else: 
+    closeWhenDone = True
+    rg = openNetCDFfileForReading(fileName)
   if not variableName:
     print 'No variable name specified! Specify a varible from the following summary of "'\
           +fileName+'":\n'
     dump(fileName)
     exit(0)
+
+  dtype = kwargs.setdefault('dtype','float64')
 
   # Check that the variable is in the file (allowing for case mismatch)
   for v in rg.variables:
@@ -96,6 +108,8 @@ def readVar(fileName, variableName, dtype='float64', *args):
 
   dimensions = []
   for n, d in enumerate(vh.dimensions):
+    print 'n=',n,'d=',d,'args[n]=',args[n]
+    print 'rg.variables[d]=',rg.variables[d]
     if n < len(args):
       if d in rg.variables: dimensions.append( rg.variables[d][args[n]] )
       else: dimensions.append( args[n] )
@@ -108,8 +122,22 @@ def readVar(fileName, variableName, dtype='float64', *args):
     attributes[a.encode('ascii','ignore')] = vh.getncattr(a)
 
   data = numpy.ma.asarray(vh[args][:], dtype=dtype)
-  rg.close()
+  if closeWhenDone: rg.close()
   return data, dimensions, attributes
+
+
+def openNetCDFfileForWriting(fileName):
+  """
+  Return Dataset type for file to write.
+  """
+
+  try:
+    if os.path.isfile(fileName): rg = nc4.Dataset(fileName,'a')
+    else: rg = nc4.Dataset(fileName,'w')
+  except:
+    if os.path.isfile(fileName): raise Exception('There was a problem opening "'+fileName+'" for appending.')
+    raise Exception('There was a problem creating "'+fileName+'".')
+  return rg
 
 
 def write(fileName, variableName=None, variable=None, dimensions=None, attributes=None, dataType='f8', fillValue=None, clobber=False, record=None):
@@ -134,10 +162,16 @@ def write(fileName, variableName=None, variable=None, dimensions=None, attribute
   >>> nccf.write('test.nc','Temp',T)
   """
 
-  if clobber: os.remove(fileName)
-
-  if os.path.isfile(fileName): rg = nc4.Dataset(fileName,'a')
-  else: rg = nc4.Dataset(fileName,'w')
+  if isinstance(fileName, nc4.Dataset):
+    closeWhenDone = False
+    if clobber: raise Exception('clobber is incompatible with passing a root-group as an argument')
+    rg = fileName
+  else:
+    closeWhenDone = True
+    if clobber:
+      try: os.remove(fileName)
+      except: pass
+    rg = openNetCDFfileForWriting(fileName)
 
   def createDimIfMissing(rg, name, size):
     if name in rg.dimensions:
@@ -231,7 +265,8 @@ def write(fileName, variableName=None, variable=None, dimensions=None, attribute
       if len(vh.shape)==1: vh[record] = variable
       else: vh[record,:] = variable
     else: vh[:] = variable
-  rg.close
+
+  if closeWhenDone: rg.close
 
 
 def testNCCF():
@@ -272,14 +307,16 @@ def testNCCF():
   dump('q.nc')
   print '======= clobber finished' ; print
   print 'Testing creating unlimited dimension with attributes'
-  nccf.write('q.nc', 'time', dimensions={'time':None}, attributes={'axis':'T', 'long_name':'Time in seconds', 'units':'seconds'})
-  nccf.write('q.nc', 'it', d[-1], dimensions=['it'])
-  nccf.write('q.nc', 'jt', d[-2], dimensions=['jt'])
-  nccf.write('q.nc', 'Temp', T, dimensions=['time','jt','it'])
-  nccf.write('q.nc', 'time', 43200., record=0)
-  nccf.write('q.nc', 'time', 86400., record=1)
-  nccf.write('q.nc', 'Temp', T, dimensions=['time','jt','it'], record=1)
-  dump('q.nc')
+  rg = openNetCDFfileForWriting('q.nc')
+  nccf.write(rg, 'time', dimensions={'time':None}, attributes={'axis':'T', 'long_name':'Time in seconds', 'units':'seconds'})
+  nccf.write(rg, 'it', d[-1], dimensions=['it'])
+  nccf.write(rg, 'jt', d[-2], dimensions=['jt'])
+  nccf.write(rg, 'Temp', T, dimensions=['time','jt','it'])
+  nccf.write(rg, 'time', 43200., record=0)
+  nccf.write(rg, 'time', 86400., record=1)
+  nccf.write(rg, 'Temp', T, dimensions=['time','jt','it'], record=1)
+  dump(rg)
+  rg.close()
   print '======= unlimited finished' ; print
 
 
