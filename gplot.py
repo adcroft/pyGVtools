@@ -611,6 +611,10 @@ class FnSlice:
     self.data = None
     if self.function.lower() in ['xave', 'xpsi']:
       self.rank = self.rank - 1
+      #del self.dims[-1]
+    elif self.function.lower() in ['tave']:
+      self.rank = self.rank - 1
+      del self.dims[0]
   def getData(self):
     """
     Popolate FnfSlice.data with data from file
@@ -646,6 +650,8 @@ class FnSlice:
         global_eVar.refreshable = False
         global_eVar.data = np.min(global_eVar.data, axis=-1)
         self.data = self.data[1:,:]
+    elif self.function.lower() == 'tave':
+      self.data = np.mean( self.vars[0].data, axis=0 )
     else: raise MyError('Unknown function: '+self.function)
 
 
