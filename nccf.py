@@ -31,7 +31,8 @@ def dump(fileName):
     closeWhenDone = True
     rg = openNetCDFfileForReading(fileName)
   dims = rg.dimensions; vars = rg.variables
-  print 'Summary of %s:'%fileName
+  if not isinstance(fileName,nc4.Dataset): print 'Summary of %s:'%fileName
+
   def allAttributes(obj):
     attributes = {}
     for a in obj.ncattrs():
@@ -108,8 +109,6 @@ def readVar(fileName, variableName, *args, **kwargs):
 
   dimensions = []
   for n, d in enumerate(vh.dimensions):
-    print 'n=',n,'d=',d,'args[n]=',args[n]
-    print 'rg.variables[d]=',rg.variables[d]
     if n < len(args):
       if d in rg.variables: dimensions.append( rg.variables[d][args[n]] )
       else: dimensions.append( args[n] )
@@ -212,12 +211,10 @@ def write(fileName, variableName=None, variable=None, dimensions=None, attribute
   variableDimensions = None
   if dimensions==None:
     if not variable==None and (isinstance(variable, numpy.ma.core.MaskedArray) or isinstance(variable, numpy.ndarray)):
-      print 'type(variable)=',type(variable)
       # Create or match some simple dimensions with made up names
       variableDimensions = []
       for i in range(len(variable.shape)):
         matchingDims = [d for d in rg.dimensions if len(rg.dimensions[d])==variable.shape[i] and not d in variableDimensions]
-        print 'matchingDims=',matchingDims
         if len(matchingDims)>1: raise Exception(
           'Too many matching-length dimensions to choose from. Please provide specific dimensions')
         elif len(matchingDims)==1:
