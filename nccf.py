@@ -82,7 +82,7 @@ def readVar(fileName, variableName, *args, **kwargs):
 
   Examples:
   >>> T,_,_ = nccf.readVar('test.nc','xyz')
-  >>> T,dims,atts = nccf.readVar('test.nc','xyz',rang(1,4),3)
+  >>> T,dims,atts = nccf.readVar('test.nc','xyz',range(1,4),3)
   """
 
   if isinstance(fileName, nc4.Dataset):
@@ -92,7 +92,7 @@ def readVar(fileName, variableName, *args, **kwargs):
     closeWhenDone = True
     rg = openNetCDFfileForReading(fileName)
   if not variableName:
-    print 'No variable name specified! Specify a varible from the following summary of "'\
+    print 'No variable name specified! Specify a variable from the following summary of "'\
           +fileName+'":\n'
     dump(fileName)
     exit(0)
@@ -107,20 +107,24 @@ def readVar(fileName, variableName, *args, **kwargs):
 
   vh = rg.variables[variableName] # Handle for variable
 
-  dimensions = []
+  dimensions = []; slices = []
   for n, d in enumerate(vh.dimensions):
     if n < len(args):
-      if d in rg.variables: dimensions.append( rg.variables[d][args[n]] )
-      else: dimensions.append( args[n] )
+      if args[n]==None: slice = range( len(rg.dimensions[d]) )
+      else: slice = args[n]
+      if d in rg.variables: dimensions.append( rg.variables[d][slice] )
+      else: dimensions.append( slice )
     else:
       if d in rg.variables: dimensions.append( numpy.asarray(rg.variables[d][:], dtype=dtype) )
-      else: dimensions.append( range( len(rg.dimensions[d] ) ) )
+      else: dimensions.append( range( len(rg.dimensions[d]) ) )
+      slice = range( len(rg.dimensions[d]) )
+    slices.append( slice )
 
   attributes = {}
   for a in vh.ncattrs():
     attributes[a.encode('ascii','ignore')] = vh.getncattr(a)
 
-  data = numpy.ma.asarray(vh[args][:], dtype=dtype)
+  data = numpy.ma.asarray(vh[slices][:], dtype=dtype)
   if closeWhenDone: rg.close()
   return data, dimensions, attributes
 
