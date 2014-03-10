@@ -173,7 +173,7 @@ def newLims(cur_xlim, cur_ylim, cursor, xlim, ylim, scale_factor):
 def xycompare(field1, field2, x=None, y=None, area=None,
   xLabel=None, xUnits=None, yLabel=None, yUnits=None,
   title1='', title2='', title3='A - B', addPlabel=True, suptitle='',
-  nBins=None, cLim=None, dLim=None, landColor=[.5,.5,.5], colormap=None, dcolormap=None,
+  nBins=None, cLim=None, dLim=None, landColor=[.5,.5,.5], colormap=None, dcolormap=None, extend=None,
   aspect=None, resolution=None, nPanels=3,
   ignore=None, save=None, debug=False, show=False, interactive=False):
   """
@@ -202,6 +202,7 @@ def xycompare(field1, field2, x=None, y=None, area=None,
   landColor   An rgb tuple to use for the color of land (no data). Default [.5,.5,.5].
   colormap    The name of the colormap to use for the field plots. Default None.
   dcolormap   The name of the colormap to use for the differece plot. Default None.
+  extend      Can be one of 'both', 'neither', 'max', 'min'. Default None.
   aspect      The aspect ratio of the figure, given as a tuple (W,H). Default [16,9].
   resolution  The vertical rseolutin of the figure given in pixels. Default 1280.
   nPanels     Number of panels to display (1, 2 or 3). Default 3.
@@ -240,7 +241,7 @@ def xycompare(field1, field2, x=None, y=None, area=None,
   else: cBins=nBins
   if nBins==None and (dLim==None or len(dLim)==2): nBins=35
   if colormap==None: colormap = chooseColorMap(s12Min, s12Max)
-  cmap, norm, extend = chooseColorLevels(s12Min, s12Max, colormap, cLim=cLim, nBins=cBins)
+  cmap, norm, extend = chooseColorLevels(s12Min, s12Max, colormap, cLim=cLim, nBins=cBins, extend=extend)
 
   def annotateStats(axis, sMin, sMax, sMean, sStd, sRMS):
     axis.annotate('max=%.5g\nmin=%.5g'%(sMax,sMin), xy=(0.0,1.025), xycoords='axes fraction', verticalalignment='bottom', fontsize=10)
@@ -279,7 +280,7 @@ def xycompare(field1, field2, x=None, y=None, area=None,
   if nPanels in [1,3]:
     plt.subplot(nPanels,1,nPanels)
     if dcolormap==None: dcolormap = chooseColorMap(dMin, dMax)
-    cmap, norm, extend = chooseColorLevels(dMin, dMax, dcolormap, cLim=dLim, nBins=nBins)
+    cmap, norm, extend = chooseColorLevels(dMin, dMax, dcolormap, cLim=dLim, nBins=nBins, extend=extend)
     plt.pcolormesh(xCoord, yCoord, maskedField1 - maskedField2, cmap=cmap, norm=norm)
     if interactive: addStatusBar(xCoord, yCoord, maskedField1 - maskedField2)
     plt.colorbar(fraction=.08, pad=0.02, extend=extend)
@@ -308,7 +309,7 @@ def chooseColorMap(sMin, sMax):
   else: return 'spectral'
 
 
-def chooseColorLevels(sMin, sMax, colorMapName, cLim=None, nBins=None, steps=[1,2,2.5,5,10]):
+def chooseColorLevels(sMin, sMax, colorMapName, cLim=None, nBins=None, steps=[1,2,2.5,5,10], extend=None):
   """
   If nBins is a positive integer, choose sensible color levels with nBins colors.
   If cLim is a 2-element tuple, create color levels within the cLim range
@@ -328,10 +329,14 @@ def chooseColorLevels(sMin, sMax, colorMapName, cLim=None, nBins=None, steps=[1,
   else: levels = cLim
 
   nColors = len(levels)-1
-  if sMin<levels[0] and sMax>levels[-1]: extend = 'both'; eColors=[1,1]
-  elif sMin<levels[0] and sMax<=levels[-1]: extend = 'min'; eColors=[1,0]
-  elif sMin>=levels[0] and sMax>levels[-1]: extend = 'max'; eColors=[0,1]
-  else: extend = 'neither'; eColors=[0,0]
+  if extend==None:
+    if sMin<levels[0] and sMax>levels[-1]: extend = 'both'#; eColors=[1,1]
+    elif sMin<levels[0] and sMax<=levels[-1]: extend = 'min'#; eColors=[1,0]
+    elif sMin>=levels[0] and sMax>levels[-1]: extend = 'max'#; eColors=[0,1]
+    else: extend = 'neither'#; eColors=[0,0]
+  eColors = [0,0]
+  if extend in ['both', 'min']: eColors[0] = 1
+  if extend in ['both', 'max']: eColors[1] = 1
 
   cmap = plt.cm.get_cmap(colorMapName,lut=nColors+eColors[0]+eColors[1])
   cmap0 = cmap(0.)
