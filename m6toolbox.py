@@ -109,6 +109,37 @@ def rho_Wright97(S, T, P=0):
   return (P + p0) / (Lambda + al0*(P + p0))
 
 
+def ice9(i, j, source, xcyclic=True, tripolar=True):
+  """
+  An iterative (stack based) implementation of "Ice 9".
+
+  The flood fill starts at [j,i] and treats any positive value of "source" as
+  passable. Zero and negative values block flooding.
+
+  xcyclic = True allows cyclic behavior in the last index. (default)
+  tripolar = True allows a fold across the top-most edge. (default)
+
+  Returns an array of 0's and 1's.
+  """
+  wetMask = 0*source
+  (nj,ni) = wetMask.shape
+  stack = set()
+  stack.add( (j,i) )
+  while stack:
+    (j,i) = stack.pop()
+    if wetMask[j,i] or source[j,i] <= 0: continue
+    wetMask[j,i] = 1
+    if i>0: stack.add( (j,i-1) )
+    elif xcyclic: stack.add( (j,ni-1) )
+    if i<ni-1: stack.add( (j,i+1) )
+    elif xcyclic: stack.add( (0,j) )
+    if j>0: stack.add( (j-1,i) )
+    if j<nj-1: stack.add( (j+1,i) )
+    elif tripolar: stack.add( (j,ni-1-i) ) # Tri-polar fold
+  return wetMask
+
+
+
 # Tests
 if __name__ == '__main__':
 
