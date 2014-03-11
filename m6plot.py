@@ -93,7 +93,8 @@ def addInteractiveCallbacks():
   Zoom wheel to zoom in and out.
   """
   def keyPress(event):
-    if event.key=='q': exit(0)
+    if event.key=='Q': exit(0) # Exit python
+    elif event.key=='q': plt.close() # Close just the active figure
   class hiddenStore:
     def __init__(self,axis):
       self.axis = axis
