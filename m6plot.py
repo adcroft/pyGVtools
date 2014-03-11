@@ -12,7 +12,7 @@ import m6toolbox
 
 def xyplot(field, x=None, y=None, area=None,
   xLabel=None, xUnits=None, yLabel=None, yUnits=None,
-  title='', suptitle='', nBins=None, cLim=None, landColor=[.5,.5,.5], colormap=None,
+  title='', suptitle='', nBins=None, cLim=None, landColor=[.5,.5,.5], colormap=None, extend=None,
   aspect=[16,9], resolution=576,
   ignore=None, save=None, debug=False, show=False, interactive=False):
   """
@@ -35,6 +35,7 @@ def xyplot(field, x=None, y=None, area=None,
   cLim        A tuple of (min,max) color range OR a list of contour levels. Default None.
   landColor   An rgb tuple to use for the color of land (no data). Default [.5,.5,.5].
   colormap    The name of the colormap to use. Default None.
+  extend      Can be one of 'both', 'neither', 'max', 'min'. Default None.
   aspect      The aspect ratio of the figure, given as a tuple (W,H). Default [16,9].
   resolution  The vertical rseolutin of the figure given in pixels. Default 720.
   ignore      A value to use as no-data (NaN). Default None.
@@ -59,7 +60,7 @@ def xyplot(field, x=None, y=None, area=None,
   # Choose colormap
   if nBins==None and (cLim==None or len(cLim)==2): nBins=35
   if colormap==None: colormap = chooseColorMap(sMin, sMax)
-  cmap, norm, extend = chooseColorLevels(sMin, sMax, colormap, cLim=cLim, nBins=nBins)
+  cmap, norm, extend = chooseColorLevels(sMin, sMax, colormap, cLim=cLim, nBins=nBins, extend=extend)
 
   setFigureSize(aspect, resolution, debug=debug)
   #plt.gcf().subplots_adjust(left=.08, right=.99, wspace=0, bottom=.09, top=.9, hspace=0)
@@ -483,6 +484,7 @@ def setFigureSize(aspect=None, verticalResolution=None, nPanels=1, debug=False):
   if nPanels==1: plt.gcf().subplots_adjust(left=.08, right=.99, wspace=0, bottom=.09, top=.9, hspace=0)
   elif nPanels==2: plt.gcf().subplots_adjust(left=.11, right=.94, wspace=0, bottom=.05, top=.94, hspace=0.15)
   elif nPanels==3: plt.gcf().subplots_adjust(left=.11, right=.94, wspace=0, bottom=.05, top=.94, hspace=0.15)
+  elif nPanels==0: pass
   else: raise Exception('nPanels out of range')
 
 
@@ -517,8 +519,8 @@ def createXYlabels(x, y, xLabel, xUnits, yLabel, yUnits):
 
 def yzplot(field, y=None, z=None,
   yLabel=None, yUnits=None, zLabel=None, zUnits=None,
-  title='', suptitle='', nBins=None, cLim=None, landColor=[.5,.5,.5], colormap=None,
-  aspect=[16,9], resolution=576,
+  title='', suptitle='', nBins=None, cLim=None, landColor=[.5,.5,.5], colormap=None, extend=None,
+  aspect=[16,9], resolution=576, newFigure=True,
   ignore=None, save=None, debug=False, show=False, interactive=False):
   """
   Renders section plot of scalar field, field(x,z).
@@ -539,6 +541,7 @@ def yzplot(field, y=None, z=None,
   cLim        A tuple of (min,max) color range OR a list of contour levels. Default None.
   landColor   An rgb tuple to use for the color of land (no data). Default [.5,.5,.5].
   colormap    The name of the colormap to use. Default None.
+  extend      Can be one of 'both', 'neither', 'max', 'min'. Default None.
   aspect      The aspect ratio of the figure, given as a tuple (W,H). Default [16,9].
   resolution  The vertical rseolutin of the figure given in pixels. Default 720.
   ignore      A value to use as no-data (NaN). Default None.
@@ -566,9 +569,9 @@ def yzplot(field, y=None, z=None,
   # Choose colormap
   if nBins==None and (cLim==None or len(cLim)==2): nBins=35
   if colormap==None: colormap = chooseColorMap(sMin, sMax)
-  cmap, norm, extend = chooseColorLevels(sMin, sMax, colormap, cLim=cLim, nBins=nBins)
+  cmap, norm, extend = chooseColorLevels(sMin, sMax, colormap, cLim=cLim, nBins=nBins, extend=extend)
 
-  setFigureSize(aspect, resolution, debug=debug)
+  if newFigure: setFigureSize(aspect, resolution, debug=debug)
   #plt.gcf().subplots_adjust(left=.10, right=.99, wspace=0, bottom=.09, top=.9, hspace=0)
   axis = plt.gca()
   plt.pcolormesh(yCoord, zCoord, field2, cmap=cmap, norm=norm)
@@ -594,7 +597,7 @@ def yzplot(field, y=None, z=None,
 def yzcompare(field1, field2, y=None, z=None,
   yLabel=None, yUnits=None, zLabel=None, zUnits=None,
   title1='', title2='', title3='A - B', addPlabel=True, suptitle='',
-  nBins=None, cLim=None, dLim=None, landColor=[.5,.5,.5], colormap=None, dcolormap=None,
+  nBins=None, cLim=None, dLim=None, landColor=[.5,.5,.5], colormap=None, dcolormap=None, extend=None,
   aspect=None, resolution=None, nPanels=3,
   ignore=None, save=None, debug=False, show=False, interactive=False):
   """
@@ -622,6 +625,7 @@ def yzcompare(field1, field2, y=None, z=None,
   landColor   An rgb tuple to use for the color of land (no data). Default [.5,.5,.5].
   colormap    The name of the colormap to use for the field plots. Default None.
   dcolormap   The name of the colormap to use for the differece plot. Default None.
+  extend      Can be one of 'both', 'neither', 'max', 'min'. Default None.
   aspect      The aspect ratio of the figure, given as a tuple (W,H). Default [16,9].
   resolution  The vertical rseolutin of the figure given in pixels. Default 1280.
   nPanels     Number of panels to display (1, 2 or 3). Default 3.
@@ -665,7 +669,7 @@ def yzcompare(field1, field2, y=None, z=None,
   else: cBins=nBins
   if nBins==None and (dLim==None or len(dLim)==2): nBins=35
   if colormap==None: colormap = chooseColorMap(s12Min, s12Max)
-  cmap, norm, extend = chooseColorLevels(s12Min, s12Max, colormap, cLim=cLim, nBins=cBins)
+  cmap, norm, extend = chooseColorLevels(s12Min, s12Max, colormap, cLim=cLim, nBins=cBins, extend=extend)
 
   def annotateStats(axis, sMin, sMax, sMean, sStd, sRMS):
     axis.annotate('max=%.5g\nmin=%.5g'%(sMax,sMin), xy=(0.0,1.025), xycoords='axes fraction', verticalalignment='bottom', fontsize=10)
@@ -705,7 +709,7 @@ def yzcompare(field1, field2, y=None, z=None,
   if nPanels in [1, 3]:
     plt.subplot(nPanels,1,nPanels)
     if dcolormap==None: dcolormap = chooseColorMap(dMin, dMax)
-    cmap, norm, extend = chooseColorLevels(dMin, dMax, dcolormap, cLim=dLim, nBins=nBins)
+    cmap, norm, extend = chooseColorLevels(dMin, dMax, dcolormap, cLim=dLim, nBins=nBins, extend=extend)
     plt.pcolormesh(yCoord, zCoord, field1 - field2, cmap=cmap, norm=norm)
     if interactive: addStatusBar(yCoord, zCoord, field1 - field2)
     plt.colorbar(fraction=.08, pad=0.02, extend=extend)
