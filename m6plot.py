@@ -230,7 +230,8 @@ def xycompare(field1, field2, x=None, y=None, area=None,
   else: maskedField2 = field2.copy()
   s2Min, s2Max, s2Mean, s2Std, s2RMS = myStats(maskedField2, area, debug=debug)
   dMin, dMax, dMean, dStd, dRMS = myStats(maskedField1 - maskedField2, area, debug=debug)
-  dRxy = corr(maskedField1 - s1Mean, maskedField2 - s2Mean, area)
+  if s1Mean!=None: dRxy = corr(maskedField1 - s1Mean, maskedField2 - s2Mean, area)
+  else: dRxy = None
   s12Min = min(s1Min, s2Min); s12Max = max(s1Max, s2Max)
   xLims = boundaryStats(xCoord); yLims = boundaryStats(yCoord)
   if debug:
@@ -292,7 +293,7 @@ def xycompare(field1, field2, x=None, y=None, area=None,
     if len(yLabel+yUnits)>0: plt.ylabel(label(yLabel, yUnits))
     if len(title3)>0: plt.title(title3)
 
-  plt.gca().annotate(' r(A,B)=%.5g\n'%(dRxy), xy=(1.0,-0.20), xycoords='axes fraction', verticalalignment='bottom', horizontalalignment='center', fontsize=10)
+  if dRxy!=None: plt.gca().annotate(' r(A,B)=%.5g\n'%(dRxy), xy=(1.0,-0.20), xycoords='axes fraction', verticalalignment='bottom', horizontalalignment='center', fontsize=10)
   if len(xLabel+xUnits)>0: plt.xlabel(label(xLabel, xUnits))
   if len(suptitle)>0: plt.suptitle(suptitle)
 
