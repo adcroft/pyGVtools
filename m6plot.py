@@ -759,6 +759,40 @@ def yzWeight(y, z):
   dz = z[:-1,:] - z[1:,:]
   return numpy.matlib.repmat(y[1:] - y[:-1], dz.shape[0], 1) * dz
 
+def dunne_rainbow(N=256):
+  """
+  Spectral/rainbow colormap from John Dunne.
+  """
+  cdict = {'red': [(0.00, 0.95, 0.95),
+                   (0.09, 0.85, 0.85),
+                   (0.18, 0.60, 0.60),
+                   (0.32, 0.30, 0.30),
+                   (0.45, 0.00, 0.00),
+                   (0.60, 1.00, 1.00),
+                   (0.85, 1.00, 1.00),
+                   (1.00, 0.40, 0.00)],
+
+         'green': [(0.00, 0.75, 0.75),
+                   (0.09, 0.85, 0.85),
+                   (0.18, 0.60, 0.60),
+                   (0.32, 0.20, 0.20),
+                   (0.45, 0.60, 0.60),
+                   (0.60, 1.00, 1.00),
+                   (0.73, 0.70, 0.70),
+                   (0.85, 0.00, 0.00),
+                   (1.00, 0.00, 0.00)],
+
+         'blue':  [(0.00, 1.00, 1.00),
+                   (0.32, 1.00, 1.00),
+                   (0.45, 0.30, 0.30),
+                   (0.60, 0.00, 0.00),
+                   (1.00, 0.00, 0.00)]}
+  cmap = matplotlib.colors.LinearSegmentedColormap('dunneRainbow', cdict, N=N)
+  #cmap.set_under([1,.65,.85]); cmap.set_over([.25,0.,0.])
+  #cmap.set_bad('w')
+  matplotlib.cm.register_cmap(cmap=cmap)
+  return cmap
+
 # Test
 if __name__ == '__main__':
   import nccf
