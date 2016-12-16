@@ -32,4 +32,4 @@ Simple examples:
 Complex examples:
 
     gplot.py surf.nc,sss,: --clim 33 38 --supergrid ocean_hgrid.nc -output sss.%4.4i.png --animate
-    gplot.py prog.nc,temp,1,:,:,--170 --elevation prog.nc,e
+    gplot.py prog.nc,temp,1,:,:,=-170 --elevation prog.nc,e
