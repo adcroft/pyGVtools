@@ -109,15 +109,15 @@ def pointsAroundBox(xMesh, yMesh, iLeft=0, jBottom=0, iRight=None, jTop=None):
   if jTop<=jBottom: raise Exception('The j-index range must span at least one cell (two nodes)')
 
   xPoints=\
-      xMesh[jBottom, range(iLeft, iRight)].tolist()+\
-      xMesh[range(jBottom, jTop), iRight].tolist()+\
-      xMesh[jTop, range(iRight, iLeft, -1)].tolist()+\
-      xMesh[range(jTop, jBottom, -1), iLeft].tolist()
+      xMesh[jBottom, list(range(iLeft, iRight))].tolist()+\
+      xMesh[list(range(jBottom, jTop)), iRight].tolist()+\
+      xMesh[jTop, list(range(iRight, iLeft, -1))].tolist()+\
+      xMesh[list(range(jTop, jBottom, -1)), iLeft].tolist()
   yPoints=\
-      yMesh[jBottom, range(iLeft, iRight)].tolist()+\
-      yMesh[range(jBottom, jTop), iRight].tolist()+\
-      yMesh[jTop, range(iRight, iLeft, -1)].tolist()+\
-      yMesh[range(jTop, jBottom, -1), iLeft].tolist()
+      yMesh[jBottom, list(range(iLeft, iRight))].tolist()+\
+      yMesh[list(range(jBottom, jTop)), iRight].tolist()+\
+      yMesh[jTop, list(range(iRight, iLeft, -1))].tolist()+\
+      yMesh[list(range(jTop, jBottom, -1)), iLeft].tolist()
   return xPoints, yPoints
 
 
@@ -174,17 +174,17 @@ if __name__ == '__main__':
 
   # Test data
   X, Y = np.meshgrid(np.linspace(0, 1, 5), np.linspace(0, 1, 6))
-  print 'X=',X
-  print 'Y=',Y
+  print('X=',X)
+  print('Y=',Y)
 
-  print 'Bounding box=',boundingBox(X, Y)
-  print 'Bounding box(0,2,3,4)=',boundingBox(X, Y, 0, 2, 3, 4)
+  print('Bounding box=',boundingBox(X, Y))
+  print('Bounding box(0,2,3,4)=',boundingBox(X, Y, 0, 2, 3, 4))
 
   def test_findIndicesOfCell(xMesh, yMesh, xPoint, yPoint, result):
     i, j = findIndicesOfCell(xMesh, yMesh, xPoint, yPoint)
     if (j,i) == result: test = 'Correct'
     else: test = 'Wrong'
-    print (xPoint,yPoint),'is in cell',(i,j),test
+    print((xPoint,yPoint),'is in cell',(i,j),test)
   test_findIndicesOfCell(X, Y, X[1,2]+.1, Y[1,2]+.1, (1, 2))
   test_findIndicesOfCell(X, Y, X[1,2], Y[1,2]+.1, (1, 2))
   test_findIndicesOfCell(X, Y, X[1,2], Y[1,2]+.1, (1, 2))
@@ -197,8 +197,8 @@ if __name__ == '__main__':
     intersects = segmentsIntersect(A, B, C, D)
     if intersects == result: test = 'Correct'
     else: test = 'Wrong'
-    print '(%d,%d)-(%d,%d) intersects (%d,%d)-(%d,%d)?'%(
-        A[0],A[1],B[0],B[1],C[0],C[1],D[0],D[1] ), intersects, test
+    print('(%d,%d)-(%d,%d) intersects (%d,%d)-(%d,%d)?'%(
+        A[0],A[1],B[0],B[1],C[0],C[1],D[0],D[1] ), intersects, test)
   intersectTest( (0,0), (1,0), (0,1), (1,1), False )
   intersectTest( (0,0), (0,1), (1,1), (0.2,0), False )
   intersectTest( (0,0), (1,1), (1,0), (0,1), True )
