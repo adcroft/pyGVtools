@@ -203,7 +203,7 @@ def render(var, args, elevation=None, frame=0):
     else: print('Mininum=',dMin,'Maximum=',dMax)
 
   if args.offset: var.data = var.data + args.offset
-  if args.log10: var.data = np.log10(var.data)
+  if args.log10: var.data = np.ma.log10(var.data)
 
   # Now plot
   if var.rank==0:
