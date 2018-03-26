@@ -132,8 +132,8 @@ def createUI(fileVarSlice, args):
   if args.elevation:
     if args.elevation == 'same': (elevFileName, elevVariableName, elevSliceSpecs) = splitFileVarPos(fileName)
     else: (elevFileName, elevVariableName, elevSliceSpecs) = splitFileVarPos(args.elevation)
-    if elevSliceSpecs==None: elevSliceSpecs = sliceSpecs
-    if elevVariableName==None: elevVariableName='elevation'
+    if elevSliceSpecs is None: elevSliceSpecs = sliceSpecs
+    if elevVariableName is None: elevVariableName='elevation'
     if debug: print('elevFileName=',elevFileName,'eName=',elevVariableName,'eSlice=',elevSliceSpecs)
     eRg, eVar = readVariableFromFile(elevFileName, elevVariableName, elevSliceSpecs,
         ignoreCoords=args.indices, alternativeNames=['elev', 'e', 'h'])
@@ -148,7 +148,7 @@ def createUI(fileVarSlice, args):
   setFigureSize(args.aspect[0]/args.aspect[1], args.resolution)
 
   # Based on rank, either create interactive plot, animate or intercept requests for rank >2
-  if var.rank==3 and args.animate and not var.unlimitedDim==None:
+  if var.rank==3 and args.animate and not var.unlimitedDim is None:
     n0 = var.unlimitedDim.slice1.start; n1 = var.unlimitedDim.slice1.stop
     var.rank = 2; var.unlimitedDim.len = 1
     var.singleDims.insert(0, var.unlimitedDim)
@@ -235,8 +235,8 @@ def render(var, args, elevation=None, frame=0):
     else:
       xLabel = var.dims[1].label; xLims = var.dims[1].limits
       yLabel = var.dims[0].label; yLims = var.dims[0].limits
-      if args.supergrid==None:
-        if args.oceanstatic==None:
+      if args.supergrid is None:
+        if args.oceanstatic is None:
           xCoord = extrapCoord( var.dims[1].values); yCoord = extrapCoord( var.dims[0].values)
         else:
           xCoord, xLims = readOSvar(args.oceanstatic, 'geolon_c', var.dims)
@@ -248,7 +248,7 @@ def render(var, args, elevation=None, frame=0):
         xLabel = 'Longitude (\u00B0E)' ; yLabel = 'Latitude (\u00B0N)'
       zData = var.data
       yDim = var.dims[0]
-    if yDim.isZaxis and not elevation==None: # Z on y axis ?
+    if yDim.isZaxis and not elevation is None: # Z on y axis ?
       if elevation.refreshable: elevation.getData()
       #yCoord = elevation.data
       xCoord, yCoord, zData = m6toolbox.section2quadmesh(xCoord, elevation.data, zData, representation='pcm')
@@ -256,7 +256,7 @@ def render(var, args, elevation=None, frame=0):
       #yCoord = extrapElevation( yCoord )
       yLabel = 'Elevation (m)'
     plt.pcolormesh(xCoord,yCoord,zData)
-    if yDim.isZaxis and elevation==None: # Z on y axis ?
+    if yDim.isZaxis and elevation is None: # Z on y axis ?
       if yCoord[0]>yCoord[-1]: plt.gca().invert_yaxis(); yLims = reversed(yLims)
       if yDim.positiveDown: plt.gca().invert_yaxis(); yLims = reversed(yLims)
     if len(var.label)>50: fontsize=10
@@ -293,7 +293,7 @@ def render(var, args, elevation=None, frame=0):
       def statusMesg(x,y):
         # -1 needed because of extension for pcolormesh
         i = min(list(range(len(xCoord)-1)), key=lambda l: abs(xCoord[l]-x))
-        if not i==None:
+        if not i is None:
           val = yData[i]
           if val is np.ma.masked: return 'x=%.3f  %s(%i)=NaN'%(x,var.vname,i+1)
           else: return 'x=%.3f  %s(%i)=%g'%(x,var.vname,i+1,val)
@@ -308,7 +308,7 @@ def render(var, args, elevation=None, frame=0):
           idx = np.abs( np.fabs( xCoord[0:-1,0:-1]+xCoord[1:,1:]+xCoord[0:-1,1:]+xCoord[1:,0:-1]-4*x)
               +np.fabs( yCoord[0:-1,0:-1]+yCoord[1:,1:]+yCoord[0:-1,1:]+yCoord[1:,0:-1]-4*y) ).argmin()
           j,i = np.unravel_index(idx,zData.shape)
-        if not i==None:
+        if not i is None:
           val = zData[j,i]
           if val is np.ma.masked: return 'x,y=%.3f,%.3f  %s(%i,%i)=NaN'%(x,y,var.vname,i+1,j+1)
           else: return 'x,y=%.3f,%.3f  %s(%i,%i)=%g'%(x,y,var.vname,i+1,j+1,val)
@@ -323,7 +323,7 @@ def render(var, args, elevation=None, frame=0):
         (axmin,axmax),(aymin,aymax) = newLims(
           (axmin,axmax), (aymin,aymax), (event.xdata, event.ydata),
           (xmin,xmax), (ymin,ymax), scaleFactor)
-        if axmin==None: return
+        if axmin is None: return
         axis.set_xlim(axmin, axmax); axis.set_ylim(aymin, aymax)
         plt.draw() # force re-draw
       plt.gcf().canvas.mpl_connect('scroll_event', zoom)
@@ -361,7 +361,7 @@ def readVariableFromFile(fileName, variableName, sliceSpecs, ignoreCoords=False,
   for v in rg.variables:
     if variableName.lower() == v.lower(): variableName=v ; break
   if not variableName in rg.variables:
-    if alternativeNames==None:
+    if alternativeNames is None:
       print('Known variables in file: '+''.join( (str(v)+', ' for v in rg.variables) ))
       raise MyError('Did not find "'+variableName+'" in file "'+fileName+'".')
     else:
@@ -420,7 +420,7 @@ class NetcdfDim:
       self.label = dimensionName
       self.name = dimensionName
       self.units = ''
-    if equals==None: # Handle case where index space was specified
+    if equals is None: # Handle case where index space was specified
       # Check that only integers were provided
       def stringIsInt(s):
         if len(s)==0: return True
@@ -435,7 +435,7 @@ class NetcdfDim:
         raise MyError('The upper end of the range "%s" must be an integer'%(sliceSpec))
       if low=='': indexBegin = 0
       else: indexBegin = int(low) - 1 # Convert from Fortran indexing
-      if colon==None: indexEnd = indexBegin
+      if colon is None: indexEnd = indexBegin
       else:
         if high=='': indexEnd = len(dimensionHandle) - 1
         else: indexEnd = int(high) - 1 # Convert from Fortran indexing
@@ -450,7 +450,7 @@ class NetcdfDim:
         indexBegin = min(list(range(len(dimensionValues))), key=lambda i: abs(dimensionValues[i]-fLow))
         if indexBegin==0 and isLongitude and float(low)<cMin:
           indexBegin = min(list(range(len(dimensionValues))), key=lambda i: abs(dimensionValues[i]-fLow-360.))
-      if colon==None: indexEnd = indexBegin
+      if colon is None: indexEnd = indexBegin
       else:
         if high=='': indexEnd = len(dimensionHandle) - 1
         else:
@@ -480,8 +480,8 @@ class NetcdfDim:
     Read dimension variable data if it has not been read
     """
     #if not self.values==None: return # Already read
-    if self.values==None or forceRead: # If the handle is None then the values were created already
-      if self.dimensionVariableHandle==None:
+    if self.values is None or forceRead: # If the handle is None then the values were created already
+      if self.dimensionVariableHandle is None:
         self.values = np.array(list(range(self.slice1.start, self.slice1.stop))) + 1
       else:
         if self.slice2:
@@ -512,7 +512,7 @@ class NetcdfSlice:
     if debug: print('NetcdfSlice: variableName=',variableName)
     variableDims = variableHandle.dimensions
     if debug: print('NetcdfSlice: variableDims=',variableDims)
-    if not (sliceSpecs==None) and len(sliceSpecs)>len(variableDims):
+    if not (sliceSpecs is None) and len(sliceSpecs)>len(variableDims):
       raise MyError('Too many coordinate slices specified! Variable "'+variableName+
           '" has %i dimensions but you specified %i.'
           % ( len(variableDims), len(sliceSpecs) ) )
@@ -520,7 +520,7 @@ class NetcdfSlice:
     # Separate provided slices into named and general
     namedSlices = []; generalSlices = []
     reGen = re.compile('[a-zA-Z_]')
-    if not sliceSpecs==None:
+    if not sliceSpecs is None:
       for s in sliceSpecs:
         if reGen.match(s): namedSlices.append(s)
         else: generalSlices.append(s)
@@ -629,8 +629,8 @@ class FnSlice:
       self.data = m6toolbox.rho_Wright97(self.vars[0].data, self.vars[1].data, 4e7)
     elif self.function.lower() == 'xave':
       global global_eVar
-      if global_eVar==None: raise MyError('Elevation or thickness is necessary to compute a zonal average.')
-      if global_eVar.data==None:
+      if global_eVar is None: raise MyError('Elevation or thickness is necessary to compute a zonal average.')
+      if global_eVar.data is None:
         global_eVar.getData()
         global_eVar.refreshable = False
       self.data, zOut, _ = m6toolbox.axisAverage( self.vars[0].data, z=global_eVar.data )
@@ -645,7 +645,7 @@ class FnSlice:
       self.data = np.zeros((nk+1,nj))
       for k in range(nk,0,-1):
         self.data[k-1,:] = self.data[k,:] - xSum[k-1,:]
-      if global_eVar!=None and global_eVar.data==None:
+      if global_eVar is not None and global_eVar.data is None:
         global_eVar.getData()
         global_eVar.refreshable = False
         global_eVar.data = np.min(global_eVar.data, axis=-1)
@@ -851,7 +851,7 @@ def readSGvar(fileName, varName, varDims):
       else: yVarDim = d
   xSlice1 = slice(xVarDim.slice1.start*2, xVarDim.slice1.stop*2+1, 2)
   ySlice1 = slice(yVarDim.slice1.start*2, yVarDim.slice1.stop*2+1, 2)
-  if xVarDim.slice2==None:
+  if xVarDim.slice2 is None:
     cData = rg.variables[varName][ySlice1,xSlice1]
   else:
     xSlice2 = slice(xVarDim.slice2.start*2+1, xVarDim.slice2.stop*2+1, 2)
@@ -890,7 +890,7 @@ def readOSvar(fileName, varName, varDims):
       else: yVarDim = d
   xSlice1 = slice(xVarDim.slice1.start, xVarDim.slice1.stop)
   ySlice1 = slice(yVarDim.slice1.start, yVarDim.slice1.stop)
-  if xVarDim.slice2==None:
+  if xVarDim.slice2 is None:
     cData = rg.variables[varName][ySlice1,xSlice1]
   else:
     xSlice2 = slice(xVarDim.slice2.start, xVarDim.slice2.stop)
