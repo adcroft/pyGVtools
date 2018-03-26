@@ -74,7 +74,7 @@ def parseCommandLine():
   parser.add_argument('--dlim', type=float, nargs=2, metavar=('MIN','MAX'),
       help='''Specify the minimum/maximum color range for the difference plot.
       Values outside this range will be clipped to the minimum or maximum.''')
-  parser.add_argument('--panels', type=int, choices=range(1,4), default=3,
+  parser.add_argument('--panels', type=int, choices=list(range(1,4)), default=3,
       help='''Number of panels to show. 3 panels shows A, B and A-B; 2 panels
       displays A and B; 1 panel shows just A-B.''')
   parser.add_argument('--ignore', type=float, nargs=1,
@@ -135,25 +135,25 @@ def createUI(fileVarSlice1, fileVarSlice2, args):
   """
 
   # Extract file, variable and slice specs from fileVarSlice1
-  if debug: print 'createUI: fileVarSlice1=',fileVarSlice1
+  if debug: print('createUI: fileVarSlice1=',fileVarSlice1)
   (fileName1, variableName1, sliceSpecs1) = splitFileVarPos(fileVarSlice1)
-  if debug: print 'createUI: fileName1=',fileName1,'variableName1=',variableName1,'sliceSpecs1=',sliceSpecs1
+  if debug: print('createUI: fileName1=',fileName1,'variableName1=',variableName1,'sliceSpecs1=',sliceSpecs1)
 
   # Extract file, variable and slice specs from fileVarSlice2
-  if debug: print 'createUI: fileVarSlice2=',fileVarSlice2
+  if debug: print('createUI: fileVarSlice2=',fileVarSlice2)
   (fileName2, variableName2, sliceSpecs2) = splitFileVarPos(fileVarSlice2)
   if os.path.isdir(fileName2):
     fileName2=os.path.join(fileName2,os.path.basename(fileName1))
   if sliceSpecs2==None: sliceSpecs2 = sliceSpecs1
   if variableName2==None: variableName2 = variableName1
-  if debug: print 'createUI: fileName2=',fileName2,'variableName2=',variableName2,'sliceSpecs2=',sliceSpecs2
+  if debug: print('createUI: fileName2=',fileName2,'variableName2=',variableName2,'sliceSpecs2=',sliceSpecs2)
 
   # Read the meta-data for elevation, if asked for (needed for section plots)
   if args.elevation:
     (elevFileName, elevVariableName, elevSliceSpecs) = splitFileVarPos(args.elevation)
     if elevSliceSpecs==None: elevSliceSpecs = sliceSpecs1
     if elevVariableName==None: elevVariableName='elevation'
-    if debug: print 'elevFileName=',elevFileName,'eName=',elevVariableName,'eSlice=',elevSliceSpecs
+    if debug: print('elevFileName=',elevFileName,'eName=',elevVariableName,'eSlice=',elevSliceSpecs)
     eRg, eVar = readVariableFromFile(elevFileName, elevVariableName, elevSliceSpecs,
         ignoreCoords=args.indices, alternativeNames=['elev', 'e', 'h'])
   else: eVar = None
@@ -194,8 +194,8 @@ def createUI(fileVarSlice1, fileVarSlice2, args):
         if n==n0: plt.show(block=False)
         else: plt.draw()
   elif var1.rank>2:
-    summarizeFile(rg1); print
-    summarizeFile(rg2); print
+    summarizeFile(rg1); print()
+    summarizeFile(rg2); print()
     raise MyError( 'Variable name "%s" has resolved rank %i. Only 1D and 2D data can be plotted until you buy a holographic display.'%(variableName1, var1.rank))
   else:
     render3panels(fileName1, var1, fileName2, var2, eVar, args, frame=0)
@@ -238,16 +238,16 @@ def render(var, args, elevation=None, frame=0, skipXlabel=True, skipTitle=True, 
   if args.scale:
     var.data = args.scale * var.data
 
-  if args.list: print 'createUI: Data =\n',var.data
+  if args.list: print('createUI: Data =\n',var.data)
   if args.stats:
     dMin = np.min(var.data); dMax = np.max(var.data)
     if dMin==0 and dMax>0:
       dMin = np.min(var.data[var.data!=0])
-      print 'Mininum=',dMin,'(ignoring zeros) Maximum=',dMax
+      print('Mininum=',dMin,'(ignoring zeros) Maximum=',dMax)
     elif dMax==0 and dMin<0:
       dMax = np.max(var.data[var.data!=0])
-      print 'Mininum=',dMin,'Maximum=',dMax,'(ignoring zeros)'
-    else: print 'Mininum=',dMin,'Maximum=',dMax
+      print('Mininum=',dMin,'Maximum=',dMax,'(ignoring zeros)')
+    else: print('Mininum=',dMin,'Maximum=',dMax)
 
   if args.offset: var.data = var.data + args.offset
   if args.log10: var.data = np.log10(var.data)
@@ -256,8 +256,8 @@ def render(var, args, elevation=None, frame=0, skipXlabel=True, skipTitle=True, 
   clim = None
   if var.rank==0:
     for d in var.allDims:
-      print '%s = %g %s'%(d.name,d.values[0],d.units)
-    print var.vname+' = ',var.data,'   '+var.units
+      print('%s = %g %s'%(d.name,d.values[0],d.units))
+    print(var.vname+' = ',var.data,'   '+var.units)
     exit(0)
   elif var.rank==1: # Line plot
     if var.dims[0].isZaxis: # Transpose 1d plot
@@ -289,11 +289,11 @@ def render(var, args, elevation=None, frame=0, skipXlabel=True, skipTitle=True, 
         else:
           xCoord, xLims = readOSvar(args.oceanstatic, 'geolon_c', var.dims)
           yCoord, yLims = readOSvar(args.oceanstatic, 'geolat_c', var.dims)
-          xLabel = u'Longitude (\u00B0E)' ; yLabel = u'Latitude (\u00B0N)'
+          xLabel = 'Longitude (\u00B0E)' ; yLabel = 'Latitude (\u00B0N)'
       else:
         xCoord, xLims = readSGvar(args.supergrid, 'x', var.dims)
         yCoord, yLims = readSGvar(args.supergrid, 'y', var.dims)
-        xLabel = u'Longitude (\u00B0E)' ; yLabel = u'Latitude (\u00B0N)'
+        xLabel = 'Longitude (\u00B0E)' ; yLabel = 'Latitude (\u00B0N)'
       zData = var.data
       yDim = var.dims[0]
     if yDim.isZaxis and not elevation==None: # Z on y axis ?
@@ -332,8 +332,8 @@ def render(var, args, elevation=None, frame=0, skipXlabel=True, skipTitle=True, 
       if not skipXlabel:
         dt = time.time() - start_time
         nf = var.singleDims[0].initialLen
-        print 'Writing file "%s" (%i/%i)'%(args.output%(frame),frame,nf), \
-              'Elapsed %.1fs, %.2f FPS, total %.1fs, remaining %.1fs'%(dt, frame/dt, 1.*nf/frame*dt, (1.*nf/frame-1.)*dt)
+        print('Writing file "%s" (%i/%i)'%(args.output%(frame),frame,nf), \
+              'Elapsed %.1fs, %.2f FPS, total %.1fs, remaining %.1fs'%(dt, frame/dt, 1.*nf/frame*dt, (1.*nf/frame-1.)*dt))
         try: plt.savefig(args.output%(frame),pad_inches=0.)
         except: raise MyError('output filename must contain %D.Di when animating')
     else: plt.savefig(args.output,pad_inches=0.)
@@ -343,7 +343,7 @@ def render(var, args, elevation=None, frame=0, skipXlabel=True, skipTitle=True, 
     if var.rank==1:
       def statusMesg(x,y):
         # -1 needed because of extension for pcolormesh
-        i = min(range(len(xCoord)-1), key=lambda l: abs(xCoord[l]-x))
+        i = min(list(range(len(xCoord)-1)), key=lambda l: abs(xCoord[l]-x))
         if not i==None:
           val = yData[i]
           if val is np.ma.masked: return 'x=%.3f  %s(%i)=NaN'%(x,var.vname,i+1)
@@ -353,8 +353,8 @@ def render(var, args, elevation=None, frame=0, skipXlabel=True, skipTitle=True, 
       def statusMesg(x,y):
         if len(xCoord.shape)==1:
           # -2 needed because of coords are for vertices and need to be averaged to centers
-          i = min(range(len(xCoord)-2), key=lambda l: abs((xCoord[l]+xCoord[l+1])/2.-x))
-          j = min(range(len(yCoord)-2), key=lambda l: abs((yCoord[l]+yCoord[l+1])/2.-y))
+          i = min(list(range(len(xCoord)-2)), key=lambda l: abs((xCoord[l]+xCoord[l+1])/2.-x))
+          j = min(list(range(len(yCoord)-2)), key=lambda l: abs((yCoord[l]+yCoord[l+1])/2.-y))
         else:
           idx = np.abs( np.fabs( xCoord[0:-1,0:-1]+xCoord[1:,1:]+xCoord[0:-1,1:]+xCoord[1:,0:-1]-4*x)
               +np.fabs( yCoord[0:-1,0:-1]+yCoord[1:,1:]+yCoord[0:-1,1:]+yCoord[1:,0:-1]-4*y) ).argmin()

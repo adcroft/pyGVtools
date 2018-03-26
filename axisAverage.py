@@ -68,12 +68,12 @@ if __name__ == '__main__':
   z=z.reshape(4,4,1)
   q=np.array(np.matlib.rand(3,4))
   q=q.reshape(3,4,1)
-  print 'z.shape=',z.shape,type(z)
-  print 'q.shape=',q.shape,type(q)
-  print 'z=',z
-  print 'q=',q
+  print('z.shape=',z.shape,type(z))
+  print('q.shape=',q.shape,type(q))
+  print('z=',z)
+  print('q=',q)
 
   qOut, zOut, hOut = axisAverage(q,z,axis=-2)
-  print 'qOut=',qOut
-  print 'hOut=',hOut
-  print 'zOut=',zOut
+  print('qOut=',qOut)
+  print('hOut=',hOut)
+  print('zOut=',zOut)
