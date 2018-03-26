@@ -69,7 +69,7 @@ def parseCommandLine():
       For single-signed data with some values near zero, the 'hot' colormap is used.
       For multi-signed data with near symmetric ranges, the 'seismic' colormap is used, and the color
       range automatically centered on zero.
-      Otherwise, the 'spectral' colormap is used.
+      Otherwise, the 'viridis' colormap is used.
       See http://matplotlib.org/examples/color/colormaps_reference.html for a list of colormaps.
       ''')
   parser.add_argument('--clim', type=float, nargs=2, metavar=('MIN','MAX'),
@@ -741,10 +741,10 @@ def makeGuessAboutCmap(clim=None, colormap=None):
   plt.clim(vmin,vmax)
   if colormap: plt.set_cmap(colormap)
   else:
-    if vmin*vmax>=0 and vmax>0 and 3*vmin<vmax: plt.set_cmap('hot') # Single signed +ve data
-    elif vmin*vmax>=0 and vmin<0 and 3*vmax>vmin: plt.set_cmap('hot_r') # Single signed -ve data
+    if vmin*vmax>=0 and vmax>0 and 3*vmin<vmax: plt.set_cmap('plasma') # Single signed +ve data
+    elif vmin*vmax>=0 and vmin<0 and 3*vmax>vmin: plt.set_cmap('plasma_r') # Single signed -ve data
     elif abs((vmax+vmin)/(vmax-vmin))<.01: plt.set_cmap('seismic') # Multi-signed symmetric data
-    else: plt.set_cmap('spectral')
+    else: plt.set_cmap('viridis')
   landColor=[.5,.5,.5]
   plt.gca().set_facecolor(landColor)
   return (vmin, vmax)
