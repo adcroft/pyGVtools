@@ -95,6 +95,8 @@ def parseCommandLine():
       help='Use memory indices for coordinates.')
   parser.add_argument('-e','--elevation', type=str, default=None,
       help='The file[,variable] from which to read elevation for vertical section plots.')
+  parser.add_argument('--coordlines', action='store_true',
+      help='Plot vertical coordinate lines.')
   parser.add_argument('--animate', action='store_true',
       help='Animate over the unlimited dimension.')
   parser.add_argument('-o','--output', type=str, default='',
@@ -256,6 +258,8 @@ def render(var, args, elevation=None, frame=0):
       #yCoord = extrapElevation( yCoord )
       yLabel = 'Elevation (m)'
     plt.pcolormesh(xCoord,yCoord,zData)
+    if args.coordlines:
+      plt.plot(xCoord,yCoord.T,'k')
     if yDim.isZaxis and elevation is None: # Z on y axis ?
       if yCoord[0]>yCoord[-1]: plt.gca().invert_yaxis(); yLims = reversed(yLims)
       if yDim.positiveDown: plt.gca().invert_yaxis(); yLims = reversed(yLims)
